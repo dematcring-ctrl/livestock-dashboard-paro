@@ -1,0 +1,1791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Livestock Dashboard - Paro</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  :root{
+    --green-900:#14432f; --green-700:#1f6b52; --green-500:#2e8b68; --green-100:#e4efe8;
+    --amber:#c89b3c; --amber-soft:#f6ecd4;
+    --bg:#f3efe6; --card:#ffffff; --ink:#22302a; --muted:#6b7a72; --line:#e3dccd;
+    --red:#b3452f;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{font-family:"Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+       background:var(--bg); color:var(--ink); line-height:1.45;}
+  header{background:linear-gradient(135deg, var(--green-900), var(--green-700)); color:#fff;
+         padding:18px 26px 16px; display:flex; flex-wrap:wrap; gap:14px; align-items:center; justify-content:space-between;}
+  header h1{font-size:21px; font-weight:650; letter-spacing:.2px;}
+  header .sub{font-size:12.5px; opacity:.85; margin-top:3px;}
+  .head-right{display:flex; align-items:center; gap:14px; flex-wrap:wrap;}
+  .status{display:flex; align-items:center; gap:7px; font-size:12.5px; background:rgba(255,255,255,.13);
+          padding:6px 12px; border-radius:20px;}
+  .dot{width:9px; height:9px; border-radius:50%; background:#f2c14e;}
+  .dot.ok{background:#7fe0a8; box-shadow:0 0 0 0 rgba(127,224,168,.6); animation:pulse 2s infinite;}
+  @keyframes pulse{70%{box-shadow:0 0 0 7px rgba(127,224,168,0);} 100%{box-shadow:0 0 0 0 rgba(127,224,168,0);}}
+  .dot.err{background:var(--red);}
+  .ctrl{display:flex; align-items:center; gap:8px; font-size:12.5px;}
+  .ctrl select,.ctrl button{font:inherit; border:1px solid rgba(255,255,255,.45); background:rgba(255,255,255,.12);
+        color:#fff; border-radius:8px; padding:5px 10px; cursor:pointer;}
+  .ctrl select option{color:var(--ink);}
+  .ctrl button:hover{background:rgba(255,255,255,.25);}
+  main{padding:16px 26px 40px; max-width:1400px; margin:0 auto;}
+  .banner{display:none; background:#fbe9e4; color:var(--red); border:1px solid #f0c4b8; border-radius:10px;
+          padding:11px 15px; font-size:13.5px; margin-bottom:16px;}
+  .banner.show{display:block;}
+  .toolbar{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; flex-wrap:wrap;}
+  .toolbar label{font-size:13px; color:var(--muted); display:flex; align-items:center; gap:8px;}
+  .toolbar select{font:inherit; padding:6px 10px; border:1px solid var(--line); border-radius:8px; background:var(--card);}
+  .block h2{font-size:15px; color:var(--green-900); border-left:4px solid var(--green-700); padding-left:10px;
+            margin:26px 0 12px; font-weight:650;}
+  .block:first-of-type h2{margin-top:8px;}
+  .subh{font-size:12.5px; color:var(--muted); margin:16px 0 8px; font-weight:600; text-transform:uppercase; letter-spacing:.5px;}
+  .hint{font-size:11.5px; color:var(--muted); font-weight:400; margin-left:6px;}
+  .target-hero{background:linear-gradient(135deg, #14432f 0%, #1f6b52 62%, #2e8b68 100%); border-radius:16px;
+    padding:20px 22px; color:#fff; box-shadow:0 6px 20px rgba(20,67,47,.25);}
+  .target-head{display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:14px;}
+  .target-head h2{font-size:17px; font-weight:700; margin:0;}
+  .badge{background:#f2c14e; color:#14432f; font-size:11.5px; font-weight:700; padding:3px 10px; border-radius:20px; margin-left:8px; letter-spacing:.5px; vertical-align:2px;}
+  .target-sub{font-size:12.5px; opacity:.9; margin:0;}
+  .target-cards{display:grid; grid-template-columns:repeat(4,1fr); gap:12px;}
+  .target-card{background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.25); border-radius:12px; padding:14px 16px;}
+  .t-name{font-size:12px; text-transform:uppercase; letter-spacing:.8px; opacity:.9;}
+  .t-target{margin:6px 0 10px; font-size:24px; font-weight:800; line-height:1;}
+  .t-unit{font-size:12px; font-weight:600; opacity:.85; margin-left:5px;}
+  .t-progress{display:flex; align-items:center; gap:8px;}
+  .t-bar{flex:1; height:8px; background:rgba(255,255,255,.25); border-radius:6px; overflow:hidden;}
+  .t-fill{height:100%; background:#f2c14e; border-radius:6px; transition:width .8s ease;}
+  .t-pct{font-size:12.5px; font-weight:700; min-width:40px; text-align:right;}
+  .t-meta{font-size:11px; opacity:.85; margin-top:8px;}
+  .t-empty{color:#fff; font-size:13px; opacity:.9;}
+  @media (max-width:980px){ .target-cards{grid-template-columns:repeat(2,1fr);} }
+  @media (max-width:560px){ .target-cards{grid-template-columns:1fr;} }
+  .cards{display:grid; grid-template-columns:repeat(4, 1fr); gap:14px; margin-bottom:6px;}
+  .cards5{grid-template-columns:repeat(5, 1fr);}
+  .cards6{grid-template-columns:repeat(6, 1fr);}
+  .card{background:var(--card); border-radius:14px; padding:16px 18px; border:1px solid var(--line);
+        box-shadow:0 1px 3px rgba(20,67,47,.07);}
+  .card .label{font-size:11.5px; text-transform:uppercase; letter-spacing:.7px; color:var(--muted);}
+  .card .value{font-size:25px; font-weight:700; color:var(--green-900); margin-top:5px; font-variant-numeric:tabular-nums;}
+  .card .sub{font-size:12px; color:var(--muted); margin-top:3px;}
+  .card.zero{opacity:.55;}
+  .card.clickable{cursor:pointer; transition:box-shadow .15s, transform .15s;}
+  .card.clickable:hover{box-shadow:0 4px 14px rgba(20,67,47,.18); transform:translateY(-2px);}
+  .modal{display:none; position:fixed; inset:0; background:rgba(20,43,33,.55); z-index:1000; padding:36px 16px; overflow:auto;}
+  .modal.open{display:flex; align-items:flex-start; justify-content:center;}
+  .modal-card{background:#fff; border-radius:14px; max-width:940px; width:100%; padding:18px 20px; box-shadow:0 12px 44px rgba(0,0,0,.28);}
+  .modal-card h3{font-size:15px; color:var(--green-900); margin-bottom:4px;}
+  .modal-close{float:right; border:none; background:var(--green-100); color:var(--green-900); border-radius:8px;
+        padding:7px 14px; font-weight:600; cursor:pointer; font:inherit; font-size:13px; margin-top:-6px;}
+  .modal-close:hover{background:var(--green-700); color:#fff;}
+  #achTable td.ach-month{font-weight:700; color:var(--green-900); background:#faf7ef; vertical-align:top;}
+  #achTable td.ach-total, #achTable th:last-child{background:var(--green-100); color:var(--green-900); font-weight:700;}
+  .maps-link{color:var(--green-700); font-weight:600; text-decoration:none;}
+  .maps-link:hover{text-decoration:underline;}
+  .legend{display:flex; gap:16px; flex-wrap:wrap; font-size:12px; color:var(--muted); margin-top:8px;}
+  .legend i{display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:5px; vertical-align:middle;}
+  .legend .pin{width:10px; height:10px; border-radius:50% 50% 50% 0; transform:rotate(-45deg);}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:14px;}
+  .box{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px; min-width:0;}
+  .box h3{font-size:13.5px; color:var(--green-900); margin-bottom:10px; font-weight:650;}
+  .chart-wrap{position:relative; height:280px;}
+  .chart-wrap .empty{position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+                     color:var(--muted); font-size:13px;}
+  .table-wrap{overflow-x:auto; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:6px;}
+  .photo-img{width:100%; height:170px; object-fit:cover; border-radius:8px; margin-top:6px; display:block;}
+  table{width:100%; border-collapse:collapse; font-size:12.8px; min-width:760px;}
+  th,td{padding:7px 10px; text-align:right; white-space:nowrap;}
+  th{color:var(--muted); font-weight:600; font-size:11.5px; text-transform:uppercase; letter-spacing:.4px;
+     border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--card);}
+  td.l,th.l{text-align:left;}
+  tbody tr:nth-child(even){background:#faf7ef;}
+  #map{height:340px; border-radius:10px; z-index:0;}
+  footer{max-width:1400px; margin:0 auto; padding:6px 26px 30px; color:var(--muted); font-size:12px;}
+  footer a{color:var(--green-700);}
+  @media (max-width:1100px){ .cards5,.cards6{grid-template-columns:repeat(3,1fr);} }
+  @media (max-width:980px){ .cards{grid-template-columns:repeat(2,1fr);} .grid2{grid-template-columns:1fr;} }
+  @media (max-width:560px){ .cards{grid-template-columns:1fr;} .cards5,.cards6{grid-template-columns:repeat(2,1fr);} }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Livestock Dashboard - Paro</h1>
+    <div class="sub" id="headerSub">Dairy / Poultry / Piggery / Fishery/honey — Live Data</div>
+  </div>
+  <div class="head-right">
+    <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">Connecting…</span></div>
+    <div class="ctrl">
+      <label>Auto-refresh</label>
+      <select id="refreshSel">
+        <option value="0">Off</option>
+        <option value="60">1 min</option>
+        <option value="300" selected>5 min</option>
+        <option value="900">15 min</option>
+      </select>
+      <button id="refreshBtn">Refresh now</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="banner" id="errBanner"></div>
+
+  <!-- ============ ANNUAL TARGETS ============ -->
+  <section class="block" id="targetBlock">
+    <div class="target-hero">
+      <div class="target-head">
+        <h2>Annual Livestock Targets <span class="badge">FY 2026-2027</span></h2>
+        <p class="target-sub">Livestock for Sustainable Economic Development</p>
+      </div>
+      <div class="target-cards" id="targetCards"></div>
+    </div>
+  </section>
+
+  <!-- ============ REGISTRY (top) ============ -->
+  <section class="block">
+    <h2>Registry — registered units, farms &amp; groups</h2>
+    <div class="cards" id="registryKpis"></div>
+    <div class="box" style="margin-top:14px;">
+      <h3>Registered farms &amp; MPUs — locations <span class="hint">hover or click an MPU pin for full details</span></h3>
+      <div id="map"></div>
+      <div class="legend">
+        <span><i class="pin" style="background:#3388ff"></i>MPU</span>
+        <span><i style="background:#2e8b68"></i>Piggery fattening farm</span>
+        <span><i style="background:#d97706"></i>Piggery breeding farm</span>
+        <span><i style="background:#7a5aa8"></i>Poultry layer farm</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PHOTOS ============ -->
+  <section class="block" id="photosBlock" style="display:none;">
+    <h2>Photos <span class="hint">images come from the "Dashboard Images" tab of the production sheet — update the URL in the cell and they change here automatically</span></h2>
+    <div class="cards" id="photosGrid"></div>
+  </section>
+
+  <div class="toolbar">
+    <label>Reporting month
+      <select id="monthSel"></select>
+    </label>
+    <span id="lastUpdate" style="font-size:12px;color:var(--muted)"></span>
+  </div>
+
+  <!-- ============ DAIRY ============ -->
+  <section class="block">
+    <h2>Dairy — milk production &amp; processing</h2>
+    <div class="cards" id="dairyKpis"></div>
+    <div class="subh">Milk Processing Units (MPU) output <span class="hint" id="mpuHint"></span></div>
+    <div class="cards" id="mpuKpis"></div>
+    <div class="box"><h3>Milk produced by Gewog (litres) <span class="hint" id="dairyGewogHint"></span></h3><div class="chart-wrap"><canvas id="dairyGewogChart"></canvas></div></div>
+  </section>
+
+  <!-- ============ AI REPORT ============ -->
+  <section class="block">
+    <h2>Artificial Insemination (AI) report <span class="hint" id="aiHint"></span></h2>
+    <div class="cards" id="aiKpis"></div>
+    <div class="grid2">
+      <div class="box"><h3>AI services by Gewog <span class="hint" id="aiServicesHint"></span></h3><div class="chart-wrap"><canvas id="aiServicesChart"></canvas></div></div>
+      <div class="box"><h3>Progeny born by Gewog <span class="hint" id="aiProgenyHint"></span></h3><div class="chart-wrap"><canvas id="aiProgenyChart"></canvas></div></div>
+    </div>
+  </section>
+
+  <!-- ============ POULTRY ============ -->
+  <section class="block">
+    <h2>Poultry <span class="hint" id="poultryHint"></span></h2>
+    <div class="cards" id="poultryKpis"></div>
+    <div class="grid2">
+      <div class="box"><h3>Layer population by Gewog <span class="hint" id="poultryPopHint"></span></h3><div class="chart-wrap"><canvas id="poultryPopChart"></canvas></div></div>
+      <div class="box"><h3>Egg production by Gewog <span class="hint" id="poultryEggHint"></span></h3><div class="chart-wrap"><canvas id="poultryEggChart"></canvas></div></div>
+    </div>
+  </section>
+
+  <!-- ============ PIGGERY ============ -->
+  <section class="block">
+    <h2>Piggery <span class="hint" id="piggeryHint"></span></h2>
+    <div class="cards cards5" id="piggeryKpis"></div>
+    <div class="grid2">
+      <div class="box"><h3>Breeding population by Gewog <span class="hint" id="piggyPopHint"></span></h3><div class="chart-wrap"><canvas id="piggyPopChart"></canvas></div></div>
+      <div class="box"><h3>Pork produced by Gewog (kg) <span class="hint" id="piggyPorkHint"></span></h3><div class="chart-wrap"><canvas id="piggyPorkChart"></canvas></div></div>
+    </div>
+  </section>
+
+  <!-- ============ FISHERY ============ -->
+  <section class="block">
+    <h2>Fishery <span class="hint" id="fisheryHint"></span></h2>
+    <div class="cards" id="fisheryKpis"></div>
+    <div class="subh">Trout farm — located in Dopshari Gewog only</div>
+  </section>
+
+  <!-- ============ APICULTURE ============ -->
+  <section class="block">
+    <h2>Apiculture (honey) <span class="hint" id="apicultureHint"></span></h2>
+    <div class="cards" id="apicultureKpis"></div>
+    <div class="subh">Apiculture — located in Dokar (Dogar) Gewog only</div>
+  </section>
+
+  <!-- ============ GEWOG-WISE ACHIEVEMENT ============ -->
+  <section class="block">
+    <h2>Gewog-wise achievement <span class="hint" id="achHint"></span></h2>
+    <div class="table-wrap"><table id="achTable"></table></div>
+  </section>
+
+  <div class="modal" id="farmModal">
+    <div class="modal-card">
+      <button class="modal-close" id="farmModalClose">Close</button>
+      <h3 id="farmModalTitle"></h3>
+      <div class="table-wrap" style="margin-top:12px; max-height:62vh; overflow:auto;">
+        <table id="farmTable"></table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  Data source:
+  <a href="https://docs.google.com/spreadsheets/d/1O7Sl9faka7dA80frDmOqQpb0AmBYu_3XXCtctgLEojY/edit" target="_blank" rel="noopener">Production records (Dairy · Poultry · Piggery · Fishery)</a> ·
+  <a href="https://docs.google.com/spreadsheets/d/1MCyHkv8768jHcRHqHVdYo63SF-mApXFcDjXWsEcXyCI/edit" target="_blank" rel="noopener">Registry (MPU · groups · farms)</a>
+  — the page re-reads the sheets on a timer, so new months (e.g. August) appear automatically.
+</footer>
+<script>
+/* ================= CONFIG ================= */
+const SHEET1 = "1O7Sl9faka7dA80frDmOqQpb0AmBYu_3XXCtctgLEojY";   // production records
+const SHEET2 = "1MCyHkv8768jHcRHqHVdYo63SF-mApXFcDjXWsEcXyCI";  // registry
+const SOURCES = {
+  dairy:      { sheet: SHEET1, gid: 0 },                              // CSV export (CORS ok)
+  mpu:        { sheet: SHEET2, gid: 0 },
+  poultry:    { sheet: SHEET1, name: "4. Poultry Sector " },          // gviz by exact tab name
+  piggery:    { sheet: SHEET1, name: "5. Piggery Sector " },
+  fishery:    { sheet: SHEET1, name: "6. Fishery Sector" },
+  apiculture: { sheet: SHEET1, name: "8. Apiculture" },
+  ai:         { sheet: SHEET1, name: "2. Dairy AI Record" },
+  dairyGroups:{ sheet: SHEET2, name: "Dairy Groups/Cooperatives" },
+  fattening:  { sheet: SHEET2, name: "Registered Fatterning Farm" },
+  poultryFarms:{ sheet: SHEET2, name: "Poultry Farms " },
+  staff:      { sheet: SHEET2, name: "Staff Information" },
+  troutFarms: { sheet: SHEET2, name: "Trout Farm Details " },
+  beeKeepers: { sheet: SHEET2, name: "Apiculture Details " },
+  annualTarget: { sheet: SHEET2, name: "Annual Target" },
+  highland:   { sheet: SHEET2, name: "Highland Household Details " },
+  images:     { sheet: SHEET1, name: "Dashboard Images" }
+};
+const PALETTE = ["#2e8b68","#c89b3c","#4a7fb5","#b26a3a","#7a5aa8","#c05a5a","#3aa89b","#8a9a3b","#5a7da8","#9b6a4a","#6a8f9b","#8b5aa8"];
+const SECTOR_CFG = {
+  poultry: {
+    month: ["reportingmonth"], year: ["year"], gewog: ["nameofgewogs"],
+    layerFarms: ["layerfarm"], activeFarms: ["activefarm"],
+    layerPop: ["layerpopulation"], eggs: ["eggproduction"],
+    households: ["householddoinglayerfarms"], chickenMT: ["chickenmt"],
+    eggFGP: ["fgp"]
+  },
+  piggery: {
+    month: ["reportingmonth"], year: ["year"], gewog: ["nameofgewogs"],
+    sows: ["noofsows"], boars: ["noofboars"], sucklers: ["noofsucklers"],
+    gilts: ["gilts"], nativePigs: ["nativepigs"], fattenersImproved: ["fattenersimproved"],
+    breedingFarms: ["breedingfarm"], fatteningFarms: ["fatteningfarm"],
+    porkProduced: ["totalporkproduced"], porkSold: ["totalporksold"]
+  },
+  fishery: {
+    month: ["reportingmonth"], year: ["year"], gewog: ["nameofgewogs"],
+    ponds: ["noofponds"], stocking: ["stockingrestocking"], carpHarvest: ["harvestkg"],
+    carpHouseholds: ["householddoingcarpfarming", "carpfarming"], troutFingerlings: ["fingerlingsupplied"],
+    capture: ["capturefisheries"], troutKg: ["troutharvested"],
+    troutHouseholds: ["householddoingtroutfarming", "troutfarming"], stockBalance: ["stockbalance"]
+  },
+  apiculture: {
+    month: ["reportingmonth"], year: ["year"], gewog: ["nameofgewogs"],
+    localHives: ["localhives"], improvedHives: ["improvedhives"],
+    honeyHarvested: ["honeyharvested"], honeySold: ["honeysold"],
+    households: ["apiculturefarm"]
+  }
+};
+
+/* ================= STATE ================= */
+let ST = {
+  dairy: { records: [], subtotals: {}, months: [] },
+  sectors: { poultry: null, piggery: null, fishery: null, apiculture: null },
+  ai: { records: [], dataMonths: [] },
+  mpu: [],
+  dairyGroups: 0,
+  dairyGroupRecords: [],
+  fattening: { fattening: 0, breeding: 0 },
+  poultryFarms: { count: 0, records: [] },
+  staff: { count: 0, records: [] },
+  troutFarms: { count: 0, records: [] },
+  beeKeepers: { count: 0, records: [] },
+  highland: { count: 0, records: [] },
+  images: [],
+  targets: [],
+  monthsAll: []
+};
+let charts = {};
+let map = null, mapInit = false;
+let countdownSec = 0, timerId = null, refreshing = false;
+
+/* ================= UTILITIES ================= */
+const norm = s => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+function findCol(headers, keys) {
+  for (const k of keys) {
+    const i = headers.findIndex(h => norm(h).includes(k));
+    if (i >= 0) return i;
+  }
+  return -1;
+}
+function findHeaderRow(rows, needles) {
+  for (let i = 0; i < rows.length; i++) {
+    const joined = rows[i].map(norm).join(" ");
+    if (needles.every(n => joined.includes(n))) return i;
+  }
+  return -1;
+}
+function num(v) {
+  if (v === null || v === undefined) return null;
+  const s = String(v).replace(/,/g, "").trim();
+  if (s === "" || s === "-") return null;
+  const n = parseFloat(s);
+  return isNaN(n) ? null : n;
+}
+function fmt(n, d) {
+  if (n === null || n === undefined || isNaN(n)) return "—";
+  return n.toLocaleString("en-US", { maximumFractionDigits: (d === undefined ? 0 : d) });
+}
+function esc(s) {
+  return String(s === null || s === undefined ? "" : s).replace(/[&<>"']/g,
+    c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+}
+function parseCSV(text) {
+  const rows = []; let row = [], cur = "", inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQ) {
+      if (ch === '"') { if (text[i+1] === '"') { cur += '"'; i++; } else inQ = false; }
+      else cur += ch;
+    } else if (ch === '"') inQ = true;
+    else if (ch === ",") { row.push(cur); cur = ""; }
+    else if (ch === "\n" || ch === "\r") {
+      if (ch === "\r" && text[i+1] === "\n") i++;
+      row.push(cur); cur = ""; rows.push(row); row = [];
+    } else cur += ch;
+  }
+  if (cur !== "" || row.length) { row.push(cur); rows.push(row); }
+  return rows.filter(r => r.some(c => String(c).trim() !== ""));
+}
+const MONTH_IDX = { january:0, february:1, march:2, april:3, may:4, june:5, july:6, august:7, september:8, october:9, november:10, december:11 };
+const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+function monthKey(month, year) { return year + "-" + String(MONTH_IDX[norm(month)]).padStart(2, "0"); }
+function monthLabel(key) { const p = key.split("-"); return MONTH_NAMES[parseInt(p[1], 10)] + " " + p[0]; }
+function shortLabel(key) { const p = key.split("-"); return MONTH_NAMES[parseInt(p[1], 10)].slice(0, 3) + " '" + p[0].slice(2); }
+
+/* ================= DATA FETCH ================= */
+function gvizUrl(id, name) {
+  let u = "https://docs.google.com/spreadsheets/d/" + id + "/gviz/tq?tqx=out:json";
+  if (name) u += "&sheet=" + encodeURIComponent(name);
+  return u;
+}
+function gvizToCSV(resp) {
+  const cols = (resp.table && resp.table.cols) ? resp.table.cols : [];
+  const rows = (resp.table && resp.table.rows) ? resp.table.rows : [];
+  const q = s => /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  return [cols.map(c => q(c.label || "")).join(",")].concat(rows.map(r =>
+    r.c.map(c => {
+      const v = (c && c.v !== undefined && c.v !== null) ? c.v : "";
+      return q(String(v));
+    }).join(","))).join("\n");
+}
+/* Named tabs: try fetch() first (works where CORS allows, e.g. server-side),
+   then fall back to JSONP script-tag loading (works from file:// in a browser). */
+function fetchViaGviz(id, name) {
+  const url = gvizUrl(id, name);
+  return Promise.resolve()
+    .then(function () {
+      if (typeof fetch !== "function") throw new Error("no fetch");
+      return fetch(url).then(function (res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.text();
+      }).then(function (txt) {
+        const m = txt.match(/setResponse\(([\s\S]*)\);?\s*$/);
+        if (!m) throw new Error("bad gviz response");
+        return gvizToCSV(JSON.parse(m[1]));
+      });
+    })
+    .catch(function () {
+      return new Promise(function (resolve, reject) {
+        window.google = window.google || {};
+        window.google.visualization = window.google.visualization || {};
+        window.google.visualization.Query = window.google.visualization.Query || {};
+        window.google.visualization.Query.setResponse = function (resp) {
+          try { resolve(gvizToCSV(resp)); } catch (e) { reject(e); }
+        };
+        const s = document.createElement("script");
+        s.src = url;
+        s.onerror = function () { reject(new Error("gviz script failed")); };
+        document.head.appendChild(s);
+      });
+    });
+}
+function fetchCSV(key) {
+  const s = SOURCES[key];
+  if (s.name) return fetchViaGviz(s.sheet, s.name);
+  const url = "https://docs.google.com/spreadsheets/d/" + s.sheet + "/export?format=csv&gid=" + s.gid;
+  return fetch(url, { cache: "no-store" })
+    .then(function (res) { if (!res.ok) throw new Error("HTTP " + res.status); return res.text(); })
+    .catch(function () { return fetchViaGviz(s.sheet); });
+}
+
+/* ================= LOADERS ================= */
+/* MPU processing units belong to these gewogs (for the gewog-wise table) */
+const MPU_GEWOG = {
+  "jangsampu": "Dopshari",
+  "najampu": "Naja",
+  "lamgongnorlhanamleytsogpampu": "Lamgong"
+};
+/* Manual group -> gewog mapping: some rows in the sheet leave the Gewog cell
+   blank. The user confirmed these farmer groups belong to these gewogs. */
+const GROUP_GEWOG = {
+  "dokaromchikthentshogpa": "Dokar",
+  "shariomgitshogpa": "Dopshari",
+  "damchena": "Dopshari",
+  "dacod": "Doteng",
+  "lamgongnorlhanamleytsogpa": "Lamgong",
+  "lungnyikuenchabomgidetshen": "Lungnyi",
+  "nemjolamtenomgitshogpa": "Lungnyi",
+  "shabaphunsumomgidetshen": "Shaba",
+  "tsentomnyamleytshogdey": "Tsento",
+  "drugyelchithuennyamleydeytshen": "Tsento"
+};
+function loadDairy() {
+  return fetchCSV("dairy").then(csv => {
+    const rows = parseCSV(csv);
+    if (rows.length < 2) throw new Error("Dairy sheet is empty");
+    const hIdx = findHeaderRow(rows, ["reportingmonth", "milkcollected"]);
+    if (hIdx < 0) throw new Error("Dairy sheet columns not recognized");
+    const H = rows[hIdx];
+    const C = {
+      month: findCol(H, ["reportingmonth"]), year: findCol(H, ["year"]),
+      gewog: findCol(H, ["gewog"]), group: findCol(H, ["farmersgroup"]),
+      members: findCol(H, ["totalmembers"]), active: findCol(H, ["activemembers"]),
+      cows: findCol(H, ["milkingcows"]),
+      milkCollected: findCol(H, ["milkcollected"]), milkSold: findCol(H, ["milksold"]),
+      farmPrice: findCol(H, ["farmgateprice"]),
+      butterP: findCol(H, ["butterproduced"]),
+      cheeseP: findCol(H, ["cheeeseproduced", "cheeseproduced"]),
+      yoghurtP: findCol(H, ["yoghurtproduced"]),
+      paneerP: findCol(H, ["paneerproduced"]),
+      hardC: findCol(H, ["hardchugoproduced"]), softC: findCol(H, ["softchugoproduced"]),
+      mcc: findCol(H, ["noofmilkc"]), mpuCount: findCol(H, ["noofmilkp"]), outlets: findCol(H, ["noofsales"])
+    };
+    if (C.month < 0 || C.milkCollected < 0) throw new Error("Dairy sheet columns not recognized");
+
+    const records = [], subtotals = {}, months = [];
+    let curMonth = null;
+    const numIdx = [C.members, C.active, C.cows, C.milkCollected, C.milkSold, C.butterP, C.cheeseP,
+                    C.yoghurtP, C.paneerP, C.hardC, C.softC, C.mcc, C.mpuCount, C.outlets];
+    const hasNumeric = r => numIdx.some(i => i >= 0 && num(r[i]) !== null);
+
+    for (let i = hIdx + 1; i < rows.length; i++) {
+      const r = rows[i];
+      const rMonth = C.month >= 0 ? String(r[C.month] || "").trim() : "";
+      const rGewog = C.gewog >= 0 ? String(r[C.gewog] || "").trim() : "";
+      const rGroup = C.group >= 0 ? String(r[C.group] || "").trim() : "";
+
+      // Subtotal / total rows: month or gewog marked "total", or the row labelled
+      // "MPU Data" (some months put the total there instead of "Total"), or no
+      // month+gewog with a group cell that is empty or a plain group count.
+      // These rows are the month's grand total — they must never be summed again.
+      const isTotalRow = norm(rMonth) === "total" ||
+        norm(rGewog) === "total" ||
+        /mpudata|total/.test(norm(rGewog + rGroup)) ||
+        (!rMonth && !rGewog && (!rGroup || /^\d+$/.test(rGroup.trim())));
+      if (isTotalRow) {
+        if (curMonth && hasNumeric(r)) {
+          subtotals[curMonth] = {
+            milkCollected: C.milkCollected >= 0 ? num(r[C.milkCollected]) : null,
+            milkSold: C.milkSold >= 0 ? num(r[C.milkSold]) : null,
+            members: C.members >= 0 ? num(r[C.members]) : null,
+            active: C.active >= 0 ? num(r[C.active]) : null,
+            cows: C.cows >= 0 ? num(r[C.cows]) : null,
+            mcc: C.mcc >= 0 ? num(r[C.mcc]) : null,
+            mpuCount: C.mpuCount >= 0 ? num(r[C.mpuCount]) : null,
+            outlets: C.outlets >= 0 ? num(r[C.outlets]) : null
+          };
+        }
+        continue;
+      }
+      if (rMonth) {
+        if (!(norm(rMonth) in MONTH_IDX)) continue;
+        const y = C.year >= 0 ? num(r[C.year]) : null;
+        curMonth = monthKey(rMonth, y || "");
+      }
+      if (!curMonth || !hasNumeric(r)) continue;
+
+      const rec = {
+        key: curMonth, gewog: GROUP_GEWOG[norm(rGroup)] || rGewog, group: rGroup,
+        members: C.members >= 0 ? num(r[C.members]) : null,
+        active: C.active >= 0 ? num(r[C.active]) : null,
+        cows: C.cows >= 0 ? num(r[C.cows]) : null,
+        milkCollected: C.milkCollected >= 0 ? num(r[C.milkCollected]) : null,
+        milkSold: C.milkSold >= 0 ? num(r[C.milkSold]) : null,
+        farmPrice: C.farmPrice >= 0 ? num(r[C.farmPrice]) : null,
+        butterP: C.butterP >= 0 ? num(r[C.butterP]) : null,
+        cheeseP: C.cheeseP >= 0 ? num(r[C.cheeseP]) : null,
+        yoghurtP: C.yoghurtP >= 0 ? num(r[C.yoghurtP]) : null,
+        paneerP: C.paneerP >= 0 ? num(r[C.paneerP]) : null,
+        hardC: C.hardC >= 0 ? num(r[C.hardC]) : null,
+        softC: C.softC >= 0 ? num(r[C.softC]) : null
+      };
+      if (!months.includes(curMonth)) months.push(curMonth);
+      records.push(rec);
+    }
+    ST.dairy = { records, subtotals, months };
+  });
+}
+function monthTotals(key) {
+  const recs = ST.dairy.records.filter(r => r.key === key);
+  // MPU rows are processing units — their milk is NOT counted in production/sales
+  const groupRecs = recs.filter(r => !/mpu/i.test(r.group));
+  const sum = f => groupRecs.reduce((a, r) => a + (r[f] || 0), 0);
+  const st = ST.dairy.subtotals[key];
+  return {
+    milkCollected: sum("milkCollected"),
+    milkSold: sum("milkSold"),
+    // members / active / cows are always the cumulative of the farmer-group rows
+    // themselves (the 10 MPUs) — the total row only marks the month as complete.
+    members: sum("members"),
+    active: sum("active"),
+    cows: sum("cows"),
+    complete: !!st
+  };
+}
+
+function loadSector(sourceKey) {
+  const cfg = SECTOR_CFG[sourceKey];
+  return fetchCSV(sourceKey).then(csv => {
+    const rows = parseCSV(csv);
+    const hIdx = findHeaderRow(rows, ["reportingmonth", "nameofgewogs"]);
+    if (hIdx < 0) throw new Error(sourceKey + " columns not recognized");
+    const H = rows[hIdx];
+    const C = {};
+    for (const k of Object.keys(cfg)) C[k] = findCol(H, cfg[k]);
+    const numericFields = Object.keys(cfg).filter(k => !["month", "year", "gewog"].includes(k));
+    const records = [];
+    const dataMonths = new Set();
+    let curMonth = null;
+    for (let i = hIdx + 1; i < rows.length; i++) {
+      const r = rows[i];
+      const m = C.month >= 0 ? String(r[C.month] || "").trim() : "";
+      if (norm(m) === "total") continue;
+      if (m) {
+        if (!(norm(m) in MONTH_IDX)) continue;
+        const y = C.year >= 0 ? num(r[C.year]) : null;
+        curMonth = monthKey(m, y || "");
+      }
+      if (!curMonth) continue;
+      const gewog = C.gewog >= 0 ? String(r[C.gewog] || "").trim() : "";
+      if (!gewog) continue;
+      const rec = { key: curMonth, gewog: gewog };
+      let any = false;
+      for (const f of numericFields) {
+        rec[f] = C[f] >= 0 ? num(r[C[f]]) : null;
+        if (rec[f]) any = true;
+      }
+      records.push(rec);
+      if (any) dataMonths.add(curMonth);
+    }
+    ST.sectors[sourceKey] = { records, dataMonths, cols: C };
+  });
+}
+
+function loadAI() {
+  return fetchCSV("ai").then(csv => {
+    const rows = parseCSV(csv);
+    const hIdx = findHeaderRow(rows, ["reportingmonth", "aicentre"]);
+    if (hIdx < 0) throw new Error("AI sheet columns not recognized");
+    const H = rows[hIdx];
+    const C = {
+      month: findCol(H, ["reportingmonth"]), year: findCol(H, ["year"]),
+      gewog: findCol(H, ["gewog"]), centre: findCol(H, ["aicentre"]),
+      semen: findCol(H, ["sementype"]),
+      ai: findCol(H, ["noofai"]), male: findCol(H, ["maleprogeny"]), female: findCol(H, ["femaleprogeny"])
+    };
+    const records = [];
+    const dataMonths = [];
+    let curMonth = null;
+    for (let i = hIdx + 1; i < rows.length; i++) {
+      const r = rows[i];
+      const m = C.month >= 0 ? String(r[C.month] || "").trim() : "";
+      if (norm(m) === "total") continue;
+      if (m) {
+        if (!(norm(m) in MONTH_IDX)) continue;
+        const y = C.year >= 0 ? num(r[C.year]) : null;
+        curMonth = monthKey(m, y || "");
+      }
+      if (!curMonth) continue;
+      const gewog = C.gewog >= 0 ? String(r[C.gewog] || "").trim() : "";
+      if (!gewog) continue;
+      const rec = {
+        key: curMonth, gewog: gewog,
+        centre: C.centre >= 0 ? String(r[C.centre] || "").trim() : "",
+        semen: C.semen >= 0 ? String(r[C.semen] || "").trim() : "",
+        ai: C.ai >= 0 ? num(r[C.ai]) : null,
+        male: C.male >= 0 ? num(r[C.male]) : null,
+        female: C.female >= 0 ? num(r[C.female]) : null
+      };
+      records.push(rec);
+      if ((rec.ai || 0) + (rec.male || 0) + (rec.female || 0) > 0 && !dataMonths.includes(curMonth)) {
+        dataMonths.push(curMonth);
+      }
+    }
+    ST.ai = { records: records, dataMonths: dataMonths };
+  });
+}
+
+function loadMpu() {
+  return fetchCSV("mpu").then(csv => {
+    const rows = parseCSV(csv);
+    if (rows.length < 2) throw new Error("MPU sheet is empty");
+    const hIdx = findHeaderRow(rows, ["nameofthempu"]);
+    if (hIdx < 0) throw new Error("MPU sheet columns not recognized");
+    const H = rows[hIdx];
+    const C = {
+      slno: findCol(H, ["slno"]), name: findCol(H, ["nameofthempu"]),
+      operatedBy: findCol(H, ["operatedby"]), contact: findCol(H, ["contactperson"]),
+      village: findCol(H, ["village"]), gewog: findCol(H, ["gewog"]),
+      year: findCol(H, ["establishedyear"]), capacity: findCol(H, ["processingcapacity"]),
+      gps: findCol(H, ["gpscoordinates"]), land: findCol(H, ["landarea"]),
+      products: findCol(H, ["productsprocesse", "productsprocessed", "products"])
+    };
+    if (C.name < 0) throw new Error("MPU sheet columns not recognized");
+    ST.mpu = rows.slice(hIdx + 1).map(r => ({
+      slno: C.slno >= 0 ? String(r[C.slno] || "").trim() : "",
+      name: C.name >= 0 ? String(r[C.name] || "").trim() : "",
+      operatedBy: C.operatedBy >= 0 ? String(r[C.operatedBy] || "").trim() : "",
+      contact: C.contact >= 0 ? String(r[C.contact] || "").trim() : "",
+      village: C.village >= 0 ? String(r[C.village] || "").trim() : "",
+      gewog: C.gewog >= 0 ? String(r[C.gewog] || "").trim() : "",
+      year: C.year >= 0 ? num(r[C.year]) : null,
+      capacity: C.capacity >= 0 ? String(r[C.capacity] || "").trim() : "",
+      gps: C.gps >= 0 ? String(r[C.gps] || "").trim() : "",
+      land: C.land >= 0 ? num(r[C.land]) : null,
+      products: C.products >= 0 ? String(r[C.products] || "").trim() : ""
+    })).filter(x => x.name || x.slno);
+  });
+}
+
+function loadDairyGroups() {
+  return fetchCSV("dairyGroups").then(csv => {
+    const rows = parseCSV(csv);
+    const hIdx = findHeaderRow(rows, ["cooperativename", "farmersgroup"]);
+    if (hIdx < 0) throw new Error("Dairy groups sheet columns not recognized");
+    const H = rows[hIdx];
+    const C = {
+      slno: findCol(H, ["slno"]),
+      sector: findCol(H, ["sector"]),
+      gewog: findCol(H, ["gewog"]),
+      name: findCol(H, ["cooperativename", "farmersgroup", "name"]),
+      regType: findCol(H, ["registrationtype"]),
+      regNo: findCol(H, ["registrationno"]),
+      regDate: findCol(H, ["registrationdate"]),
+      chairman: findCol(H, ["chairman"]),
+      contact: findCol(H, ["contactno"]),
+      active: findCol(H, ["totalactivemember"])
+    };
+    const records = [];
+    for (let i = hIdx + 1; i < rows.length; i++) {
+      const r = rows[i];
+      const name = C.name >= 0 ? String(r[C.name] || "").trim() : "";
+      if (!name) continue;
+      records.push({
+        slno: C.slno >= 0 ? String(r[C.slno] || "").trim() : "",
+        sector: C.sector >= 0 ? String(r[C.sector] || "").trim() : "",
+        gewog: C.gewog >= 0 ? String(r[C.gewog] || "").trim() : "",
+        name: name,
+        regType: C.regType >= 0 ? String(r[C.regType] || "").trim() : "",
+        regNo: C.regNo >= 0 ? String(r[C.regNo] || "").trim() : "",
+        regDate: C.regDate >= 0 ? String(r[C.regDate] || "").trim() : "",
+        chairman: C.chairman >= 0 ? String(r[C.chairman] || "").trim() : "",
+        contact: C.contact >= 0 ? String(r[C.contact] || "").trim() : "",
+        active: C.active >= 0 ? num(r[C.active]) : null
+      });
+    }
+    ST.dairyGroups = records.length;
+    ST.dairyGroupRecords = records;
+  });
+}
+
+function countCats(records) {
+  const cats = { com: 0, semi: 0, sub: 0 };
+  records.forEach(r => {
+    const c = norm(r.category);
+    if (c.includes("semicommercial") || c.includes("semi")) cats.semi++;
+    else if (c.includes("commercial")) cats.com++;
+    else if (c.includes("subsistence")) cats.sub++;
+  });
+  return cats;
+}
+function parseGeo(s) {
+  const m = String(s || "").match(/-?\d+\.?\d*/g);
+  if (m && m.length >= 2) {
+    const a = parseFloat(m[0]), b = parseFloat(m[1]);
+    if (!isNaN(a) && !isNaN(b)) return [a, b];
+  }
+  return null;
+}
+function loadFattening() {
+  return fetchCSV("fattening").then(csv => {
+    const rows = parseCSV(csv);
+    const hIdx = findHeaderRow(rows, ["farmregistrationtype", "nameofthefarmer"]);
+    if (hIdx < 0) throw new Error("Fattening sheet columns not recognized");
+    const H = rows[hIdx];
+    const C = {
+      type: findCol(H, ["farmregistrationtype"]),
+      name: findCol(H, ["nameofthefarmer"]),
+      gewog: findCol(H, ["gewog"]),
+      village: findCol(H, ["village"]),
+      category: findCol(H, ["category"]),
+      year: findCol(H, ["yearofestablishment"]),
+      geo: findCol(H, ["geolocation"]),
+      farmLocation: findCol(H, ["farmlocation"]),
+      regNo: findCol(H, ["registrationno"])
+    };
+    const records = [];
+    let cur = "";
+    for (let i = hIdx + 1; i < rows.length; i++) {
+      const r = rows[i];
+      const t = C.type >= 0 ? String(r[C.type] || "").trim() : "";
+      if (t) cur = t;
+      const name = C.name >= 0 ? String(r[C.name] || "").trim() : "";
+      if (!name) continue;
+      records.push({
+        type: cur, name: name,
+        gewog: C.gewog >= 0 ? String(r[C.gewog] || "").trim() : "",
+        village: C.village >= 0 ? String(r[C.village] || "").trim() : "",
+        category: C.category >= 0 ? String(r[C.category] || "").trim() : "",
+        year: C.year >= 0 ? num(r[C.year]) : null,
+        geo: C.geo >= 0 ? parseGeo(r[C.geo]) : null,
+        farmLocation: C.farmLocation >= 0 ? String(r[C.farmLocation] || "").trim() : "",
+        regNo: C.regNo >= 0 ? String(r[C.regNo] || "").trim() : ""
+      });
+    }
+    ST.fattening = {
+      fattening: records.filter(x => /fatt/i.test(x.type)).length,
+      breeding: records.filter(x => /breed/i.test(x.type)).length,
+      records: records,
+      cats: {
+        fattening: countCats(records.filter(x => /fatt/i.test(x.type))),
+        breeding: countCats(records.filter(x => /breed/i.test(x.type)))
+      }
+    };
+  });
+}
+
+function loadPoultryFarms() {
+  return fetchCSV("poultryFarms").then(csv => {
+    const rows = parseCSV(csv);
+    const hIdx = findHeaderRow(rows, ["nameofthefarmer"]);
+    if (hIdx < 0) throw new Error("Poultry farms sheet columns not recognized");
+    const H = rows[hIdx];
+    const C = {
+      name: findCol(H, ["nameofthefarmer"]),
+      contact: findCol(H, ["contactno"]),
+      gewog: findCol(H, ["gewog"]),
+      village: findCol(H, ["village"]),
+      farmLocation: findCol(H, ["farmlocation"]),
+      regNo: findCol(H, ["registrationno"]),
+      category: findCol(H, ["category"]),
+      structure: findCol(H, ["structure"]),
+      year: findCol(H, ["yearofestablishment"]),
+      geo: findCol(H, ["geolocation"])
+    };
+    const records = [];
+    for (let i = hIdx + 1; i < rows.length; i++) {
+      const r = rows[i];
+      const name = C.name >= 0 ? String(r[C.name] || "").trim() : "";
+      if (!name) continue;
+      records.push({
+        name: name,
+        contact: C.contact >= 0 ? String(r[C.contact] || "").trim() : "",
+        gewog: C.gewog >= 0 ? String(r[C.gewog] || "").trim() : "",
+        village: C.village >= 0 ? String(r[C.village] || "").trim() : "",
+        farmLocation: C.farmLocation >= 0 ? String(r[C.farmLocation] || "").trim() : "",
+        regNo: C.regNo >= 0 ? String(r[C.regNo] || "").trim() : "",
+        category: C.category >= 0 ? String(r[C.category] || "").trim() : "",
+        structure: C.structure >= 0 ? String(r[C.structure] || "").trim() : "",
+        year: C.year >= 0 ? num(r[C.year]) : null,
+        geo: C.geo >= 0 ? parseGeo(r[C.geo]) : null
+      });
+    }
+    ST.poultryFarms = { count: records.length, records: records, cats: countCats(records) };
+  });
+}
+
+function loadStaff() {
+  return fetchCSV("staff").then(csv => {
+    const rows = parseCSV(csv);
+    const hIdx = findHeaderRow(rows, ["nameofstaff"]);
+    if (hIdx < 0) throw new Error("Staff sheet columns not recognized");
+    const H = rows[hIdx];
+    const C = {
+      slno: findCol(H, ["slno"]),
+      name: findCol(H, ["nameofstaff"]),
+      designation: findCol(H, ["designation"]),
+      position: findCol(H, ["positionlevel"]),
+      empId: findCol(H, ["employmentid"]),
+      mobile: findCol(H, ["mobileno"]),
+      cid: findCol(H, ["cidno"]),
+      posting: findCol(H, ["placeofposting"]),
+      email: findCol(H, ["emailaddresses"])
+    };
+    const records = [];
+    for (let i = hIdx + 1; i < rows.length; i++) {
+      const r = rows[i];
+      const name = C.name >= 0 ? String(r[C.name] || "").trim() : "";
+      if (!name) continue;
+      records.push({
+        slno: C.slno >= 0 ? String(r[C.slno] || "").trim() : "",
+        name: name,
+        designation: C.designation >= 0 ? String(r[C.designation] || "").trim() : "",
+        position: C.position >= 0 ? String(r[C.position] || "").trim() : "",
+        empId: C.empId >= 0 ? String(r[C.empId] || "").trim() : "",
+        mobile: C.mobile >= 0 ? String(r[C.mobile] || "").trim() : "",
+        cid: C.cid >= 0 ? String(r[C.cid] || "").trim() : "",
+        posting: C.posting >= 0 ? String(r[C.posting] || "").trim() : "",
+        email: C.email >= 0 ? String(r[C.email] || "").trim() : ""
+      });
+    }
+    ST.staff = { count: records.length, records: records };
+  });
+}
+
+function loadTroutFarms() {
+  return fetchCSV("troutFarms").then(csv => {
+    const rows = parseCSV(csv);
+    const hIdx = findHeaderRow(rows, ["nameofthefarm"]);
+    if (hIdx < 0) throw new Error("Trout farms sheet columns not recognized");
+    const H = rows[hIdx];
+    const C = {
+      slno: findCol(H, ["slno"]),
+      name: findCol(H, ["nameofthefarm"]),
+      manager: findCol(H, ["nameofthemanager"]),
+      contact: findCol(H, ["conatactno", "contactno"]),
+      gewog: findCol(H, ["gewog"]),
+      village: findCol(H, ["village"]),
+      geo: findCol(H, ["geolocation"]),
+      ponds: findCol(H, ["totalpond"]),
+      capacity: findCol(H, ["totalpondcapacity"])
+    };
+    const records = [];
+    for (let i = hIdx + 1; i < rows.length; i++) {
+      const r = rows[i];
+      const name = C.name >= 0 ? String(r[C.name] || "").trim() : "";
+      if (!name) continue;
+      records.push({
+        slno: C.slno >= 0 ? String(r[C.slno] || "").trim() : "",
+        name: name,
+        manager: C.manager >= 0 ? String(r[C.manager] || "").trim() : "",
+        contact: C.contact >= 0 ? String(r[C.contact] || "").trim() : "",
+        gewog: C.gewog >= 0 ? String(r[C.gewog] || "").trim() : "",
+        village: C.village >= 0 ? String(r[C.village] || "").trim() : "",
+        geo: C.geo >= 0 ? parseGeo(r[C.geo]) : null,
+        ponds: C.ponds >= 0 ? num(r[C.ponds]) : null,
+        capacity: C.capacity >= 0 ? num(r[C.capacity]) : null
+      });
+    }
+    ST.troutFarms = { count: records.length, records: records };
+  });
+}
+
+function loadBeeKeepers() {
+  return fetchCSV("beeKeepers").then(csv => {
+    const rows = parseCSV(csv);
+    const hIdx = findHeaderRow(rows, ["beekeepers"]);
+    if (hIdx < 0) throw new Error("Bee keepers sheet columns not recognized");
+    const H = rows[hIdx];
+    const C = {
+      slno: findCol(H, ["slno"]),
+      name: findCol(H, ["nameofthebeekeeper", "beekeepers"]),
+      contact: findCol(H, ["conatactno", "contactno"]),
+      gewog: findCol(H, ["gewog"]),
+      village: findCol(H, ["village"]),
+      geo: findCol(H, ["geolocation"]),
+      hives: findCol(H, ["totalhives"])
+    };
+    const records = [];
+    for (let i = hIdx + 1; i < rows.length; i++) {
+      const r = rows[i];
+      const name = C.name >= 0 ? String(r[C.name] || "").trim() : "";
+      if (!name) continue;
+      records.push({
+        slno: C.slno >= 0 ? String(r[C.slno] || "").trim() : "",
+        name: name,
+        contact: C.contact >= 0 ? String(r[C.contact] || "").trim() : "",
+        gewog: C.gewog >= 0 ? String(r[C.gewog] || "").trim() : "",
+        village: C.village >= 0 ? String(r[C.village] || "").trim() : "",
+        geo: C.geo >= 0 ? parseGeo(r[C.geo]) : null,
+        hives: C.hives >= 0 ? num(r[C.hives]) : null
+      });
+    }
+    ST.beeKeepers = { count: records.length, records: records };
+  });
+}
+
+function loadAnnualTargets() {
+  return fetchCSV("annualTarget").then(csv => {
+    const rows = parseCSV(csv);
+    const hIdx = findHeaderRow(rows, ["commodity", "target"]);
+    if (hIdx < 0) throw new Error("Annual target sheet columns not recognized");
+    const H = rows[hIdx];
+    const lastCol = key => {
+      let idx = -1;
+      H.forEach(function (h, i) { if (norm(h).includes(key)) idx = i; });
+      return idx;
+    };
+    const C = {
+      commodity: findCol(H, ["commodity"]),
+      baseline: findCol(H, ["baseline"]),
+      target: lastCol("target")   // title merged into Sl.No header also contains "target" — take the last match
+    };
+    const targets = [];
+    for (let i = hIdx + 1; i < rows.length; i++) {
+      const r = rows[i];
+      const commodity = C.commodity >= 0 ? String(r[C.commodity] || "").trim() : "";
+      if (!commodity) continue;
+      targets.push({
+        commodity: commodity,
+        baseline: C.baseline >= 0 ? num(r[C.baseline]) : null,
+        target: C.target >= 0 ? num(r[C.target]) : null,
+        achieved: null, pct: null, unit: ""
+      });
+    }
+    ST.targets = targets;
+  });
+}
+
+/* Highland households — tab "Highland Household Details " (trailing space) on the
+   registry sheet. Columns: Sl.No. | Village | Gewog | No. of household | Total Yaks.
+   The card shows the TOTAL number of households (sum of detail rows).
+   Guard: gviz silently returns the FIRST tab when the requested tab name does not
+   exist, so we require the header row to actually mention highland/household. */
+function loadHighland() {
+  return fetchCSV("highland").then(csv => {
+    const rows = parseCSV(csv);
+    const hIdx = findHeaderRow(rows, ["village", "gewog"]);
+    if (hIdx < 0) { ST.highland = { count: 0, records: [] }; return; }
+    const H = rows[hIdx];
+    const joined = H.map(norm).join(" ");
+    if (!/highland|household/.test(joined)) { ST.highland = { count: 0, records: [] }; return; }
+    const C = {
+      slno: findCol(H, ["slno"]),
+      village: findCol(H, ["village"]),
+      gewog: findCol(H, ["gewog"]),
+      households: findCol(H, ["noofhousehold", "household"]),
+      yaks: findCol(H, ["yaks", "yak"])
+    };
+    const records = [];
+    let totalHH = 0, totalYaks = 0;
+    for (let i = hIdx + 1; i < rows.length; i++) {
+      const r = rows[i];
+      const village = C.village >= 0 ? String(r[C.village] || "").trim() : "";
+      if (!village || /total/i.test(village)) continue;   // skip blank and Total rows
+      const hh = C.households >= 0 ? num(r[C.households]) : null;
+      const yaks = C.yaks >= 0 ? num(r[C.yaks]) : null;
+      if (hh) totalHH += hh;
+      if (yaks) totalYaks += yaks;
+      records.push({
+        slno: C.slno >= 0 ? String(r[C.slno] || "").trim() : "",
+        village: village,
+        gewog: C.gewog >= 0 ? String(r[C.gewog] || "").trim() : "",
+        households: hh,
+        yaks: yaks
+      });
+    }
+    ST.highland = { count: totalHH, records: records, totalYaks: totalYaks };
+  });
+}
+
+/* Dashboard photos — tab "Dashboard Images" on the production sheet.
+   Columns: A = label, B = image URL (a plain link or an =IMAGE("url") cell).
+   Guarded against gviz silent fallback the same way as highland. */
+function loadImages() {
+  return fetchCSV("images").then(csv => {
+    const rows = parseCSV(csv);
+    let hIdx = -1;
+    for (let i = 0; i < rows.length; i++) {
+      if (rows[i].map(norm).join(" ").match(/url|image|photo/)) { hIdx = i; break; }
+    }
+    if (hIdx < 0) { ST.images = []; return; }
+    const H = rows[hIdx];
+    const C = {
+      label: findCol(H, ["label", "caption", "title", "name"]),
+      url: findCol(H, ["url", "image", "photo", "picture", "link"])
+    };
+    if (C.url < 0) { ST.images = []; return; }
+    const records = [];
+    for (let i = hIdx + 1; i < rows.length; i++) {
+      const r = rows[i];
+      let u = C.url >= 0 ? String(r[C.url] || "").trim() : "";
+      const m = u.match(/IMAGE\(\s*["']?([^"'\s)]+)["']?\s*\)/i);
+      if (m) u = m[1];
+      if (!/^https?:\/\//i.test(u)) continue;
+      records.push({
+        label: C.label >= 0 ? String(r[C.label] || "").trim() : "",
+        url: u
+      });
+    }
+    ST.images = records;
+  });
+}
+
+/* ================= RENDER HELPERS ================= */
+function kpiCard(label, value, sub, zero) {
+  return '<div class="card' + (zero ? ' zero' : '') + '"><div class="label">' + esc(label) +
+         '</div><div class="value">' + value + '</div><div class="sub">' + esc(sub) + '</div></div>';
+}
+function sumField(recs, f) { return recs.reduce((a, r) => a + (r[f] || 0), 0); }
+function weightedAvg(recs, valField, wField) {
+  let num = 0, den = 0;
+  recs.forEach(r => {
+    const w = r[wField] || 0, v = r[valField];
+    if (v && w) { num += v * w; den += w; }
+  });
+  return den ? num / den : null;
+}
+function gewogSums(recs, f) {
+  const m = {};
+  recs.filter(r => r[f] !== null && r[f] !== undefined && r[f] !== 0).forEach(r => {
+    const g = r.gewog || "—";
+    m[g] = (m[g] || 0) + r[f];
+  });
+  return Object.entries(m).sort((a, b) => b[1] - a[1]);
+}
+function setChart(ch, labels, datasets) {
+  if (!ch) return;
+  ch.data.labels = labels; ch.data.datasets = datasets; ch.update();
+}
+function chartEmpty(ch) { setChart(ch, [], []); }
+
+/* ================= CHART SETUP ================= */
+function ensureCharts() {
+  if (typeof Chart === "undefined") {
+    showBanner("Chart library failed to load (check internet connection).");
+    return false;
+  }
+  if (charts.done) return true;
+  Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+  Chart.defaults.color = "#6b7a72";
+  const barBase = {
+    responsive: true, maintainAspectRatio: false,
+    scales: { y: { beginAtZero: true, ticks: { callback: v => (v >= 1000 ? (v / 1000).toFixed(0) + "k" : v) } } },
+    plugins: { legend: { display: false } }
+  };
+  ["dairyGewogChart", "poultryPopChart", "poultryEggChart", "piggyPopChart",
+   "piggyPorkChart", "aiServicesChart"].forEach(id => {
+    charts[id] = new Chart(document.getElementById(id), { type: "bar", data: { labels: [], datasets: [] }, options: barBase });
+  });
+  charts.aiProgenyChart = new Chart(document.getElementById("aiProgenyChart"), {
+    type: "bar",
+    data: { labels: [], datasets: [] },
+    options: Object.assign({}, barBase, {
+      plugins: { legend: { position: "top", labels: { usePointStyle: true, boxWidth: 8 } } }
+    })
+  });
+  charts.done = true;
+  return true;
+}
+function barColors(n) {
+  return Array.from({ length: n }, (_, i) => "rgba(46,139,104," + (0.95 - i * 0.06).toFixed(2) + ")");
+}
+function renderBar(chartId, entries, label) {
+  if (!entries.length) { chartEmpty(charts[chartId]); return; }
+  setChart(charts[chartId], entries.map(e => e[0]), [{
+    label: label, data: entries.map(e => e[1]),
+    backgroundColor: barColors(entries.length), borderRadius: 5, maxBarThickness: 42
+  }]);
+}
+
+/* ================= RENDER: DAIRY ================= */
+function renderDairy(key) {
+  const recs = ST.dairy.records.filter(r => r.key === key);
+  const t = monthTotals(key);
+  const groups = recs.filter(r => !/mpu/i.test(r.group)).length;
+  const cows = t.cows;   // farmer groups only — MPU cows excluded
+  document.getElementById("dairyKpis").innerHTML =
+    kpiCard("Milking cows", fmt(cows), monthLabel(key) + (t.complete ? "" : " · partial")) +
+    kpiCard("Milk produced", fmt(t.milkCollected, 1) + " l",
+      "Avg farm gate price Nu " + (weightedAvg(recs.filter(r => !/mpu/i.test(r.group)), "farmPrice", "milkCollected") ?
+        weightedAvg(recs.filter(r => !/mpu/i.test(r.group)), "farmPrice", "milkCollected").toFixed(2) : "—") + "/l") +
+    kpiCard("Milk sold", fmt(t.milkSold, 1) + " l", "farmer groups · excl. MPU") +
+    kpiCard("Groups reporting", fmt(groups), recs.length + " rows incl. MPUs");
+
+  const mpus = recs.filter(r => /mpu/i.test(r.group));
+  document.getElementById("mpuHint").textContent = mpus.length ? mpus.length + " MPU rows · " + monthLabel(key) : "no MPU rows for " + monthLabel(key);
+  document.getElementById("mpuKpis").innerHTML =
+    kpiCard("Yogurt", fmt(sumField(mpus, "yoghurtP"), 1) + " l", "produced") +
+    kpiCard("Cheese", fmt(sumField(mpus, "cheeseP"), 1) + " kg", "produced") +
+    kpiCard("Butter", fmt(sumField(mpus, "butterP"), 1) + " kg", "produced") +
+    kpiCard("Hard chugo", fmt(sumField(mpus, "hardC"), 1) + " shey", "produced");
+
+  const chartRecs = recs.filter(r => r.gewog && r.gewog.trim() && !/mpu/i.test(r.group));
+  const noGewog = recs.filter(r => !(r.gewog && r.gewog.trim()) && !/mpu/i.test(r.group)).length;
+  document.getElementById("dairyGewogHint").textContent =
+    monthLabel(key) + (noGewog ? " · " + noGewog + " row(s) without gewog hidden" : "");
+  renderBar("dairyGewogChart", gewogSums(chartRecs, "milkCollected"), "Milk produced (l)");
+}
+
+/* ================= ANNUAL TARGETS ================= */
+function matchTarget(commodity) {
+  const c = norm(commodity);
+  if (c.includes("milk")) return { field: "milk", unit: "MT" };
+  if (c.includes("pork")) return { field: "pork", unit: "MT" };
+  if (c.includes("egg")) return { field: "eggs", unit: "million" };
+  if (c.includes("chicken")) return { field: "chicken", unit: "MT" };
+  return null;
+}
+function computeTargetProgress() {
+  const fyStart = "2026-06", fyEnd = "2027-05";   // FY 2026-27 = Jul 2026 - Jun 2027
+  const inFY = k => k >= fyStart && k <= fyEnd;
+  const milkRecs = ST.dairy.records.filter(r => !/mpu/i.test(r.group) && inFY(r.key));
+  const milkMT = milkRecs.reduce((a, r) => a + (r.milkCollected || 0), 0) / 1000;
+  const piggery = (ST.sectors.piggery || { records: [] }).records.filter(r => inFY(r.key));
+  const porkMT = piggery.reduce((a, r) => a + (r.porkProduced || 0), 0) / 1000;
+  const poultry = (ST.sectors.poultry || { records: [] }).records.filter(r => inFY(r.key));
+  const eggsM = poultry.reduce((a, r) => a + (r.eggs || 0), 0) / 1e6;
+  const chickenMT = poultry.reduce((a, r) => a + (r.chickenMT || 0), 0);
+  const achieved = { milk: milkMT, pork: porkMT, eggs: eggsM, chicken: chickenMT };
+  ST.targets.forEach(function (t) {
+    const m = matchTarget(t.commodity);
+    if (!m) { t.achieved = null; t.pct = null; t.unit = ""; return; }
+    t.unit = m.unit;
+    t.achieved = achieved[m.field];
+    t.pct = t.target ? (achieved[m.field] / t.target) * 100 : null;
+  });
+}
+function renderTargets() {
+  const box = document.getElementById("targetCards");
+  if (!ST.targets.length) {
+    box.innerHTML = '<div class="t-empty">No annual targets found in the sheet.</div>';
+    return;
+  }
+  box.innerHTML = ST.targets.map(function (t) {
+    const pct = t.pct;
+    const bar = (pct === null || pct === undefined) ? 0 : Math.min(100, pct);
+    const pctTxt = (pct === null || pct === undefined) ? "—" : pct.toFixed(1) + "%";
+    const achTxt = (t.achieved === null || t.achieved === undefined) ? "no data yet" : fmt(t.achieved, 2);
+    return '<div class="target-card">' +
+      '<div class="t-name">' + esc(t.commodity) + '</div>' +
+      '<div class="t-target"><span class="t-val">' + fmt(t.target, 2) + '</span><span class="t-unit">' + esc(t.unit || "") + '</span></div>' +
+      '<div class="t-progress"><div class="t-bar"><div class="t-fill" style="width:' + bar + '%"></div></div><span class="t-pct">' + pctTxt + '</span></div>' +
+      '<div class="t-meta">achieved ' + achTxt + ' ' + esc(t.unit || "") + ' of ' + fmt(t.target, 2) + ' · baseline ' + fmt(t.baseline, 2) + '</div>' +
+      '</div>';
+  }).join("");
+}
+
+/* ================= RENDER: AI REPORT ================= */
+function renderAI(key) {
+  const recs = (ST.ai.records || []).filter(r => r.key === key);
+  const services = sumField(recs, "ai"), male = sumField(recs, "male"), female = sumField(recs, "female");
+  const has = services + male + female > 0;
+  const hint = document.getElementById("aiHint");
+  hint.textContent = has ? "· " + monthLabel(key) : "· no data recorded for " + monthLabel(key);
+  document.getElementById("aiKpis").innerHTML =
+    kpiCard("AI services", has ? fmt(services) : "—", "during the month") +
+    kpiCard("Male progeny born", has ? fmt(male) : "—", "from AI") +
+    kpiCard("Female progeny born", has ? fmt(female) : "—", "from AI") +
+    kpiCard("Total progeny", has ? fmt(male + female) : "—", "male + female");
+  document.getElementById("aiServicesHint").textContent = has ? monthLabel(key) : "no data";
+  document.getElementById("aiProgenyHint").textContent = has ? monthLabel(key) : "no data";
+  renderBar("aiServicesChart", has ? gewogSums(recs, "ai") : [], "AI services");
+  const gewogs = [...new Set(recs.filter(r => (r.male || 0) + (r.female || 0) > 0).map(r => r.gewog || "—"))].sort();
+  if (!gewogs.length) { setChart(charts.aiProgenyChart, [], []); return; }
+  setChart(charts.aiProgenyChart, gewogs, [
+    { label: "Male", data: gewogs.map(g => recs.filter(r => (r.gewog || "—") === g).reduce((a, r) => a + (r.male || 0), 0)),
+      backgroundColor: "#4a7fb5", borderRadius: 4, maxBarThickness: 26 },
+    { label: "Female", data: gewogs.map(g => recs.filter(r => (r.gewog || "—") === g).reduce((a, r) => a + (r.female || 0), 0)),
+      backgroundColor: "#c05a5a", borderRadius: 4, maxBarThickness: 26 }
+  ]);
+}
+
+/* ================= RENDER: SECTORS ================= */
+function renderPoultry(key) {
+  const recs = (ST.sectors.poultry || { records: [] }).records.filter(r => r.key === key);
+  const has = sumField(recs, "layerPop") + sumField(recs, "eggs") + sumField(recs, "layerFarms") > 0;
+  const hint = document.getElementById("poultryHint");
+  hint.textContent = has ? "· " + monthLabel(key) : "· no data recorded for " + monthLabel(key);
+  document.getElementById("poultryKpis").innerHTML =
+    kpiCard("Layer farms", has ? fmt(sumField(recs, "layerFarms")) : "—", "registered") +
+    kpiCard("Layer population", has ? fmt(sumField(recs, "layerPop")) : "—", "birds") +
+    kpiCard("Egg production", has ? fmt(sumField(recs, "eggs")) : "—",
+      "Avg farm gate price Nu " + (has && weightedAvg(recs, "eggFGP", "eggs") ? weightedAvg(recs, "eggFGP", "eggs").toFixed(2) : "—")) +
+    kpiCard("Active farms", has ? fmt(sumField(recs, "activeFarms")) : "—", "doing layer farming");
+  document.getElementById("poultryPopHint").textContent = has ? monthLabel(key) : "no data";
+  document.getElementById("poultryEggHint").textContent = has ? monthLabel(key) : "no data";
+  renderBar("poultryPopChart", has ? gewogSums(recs, "layerPop") : [], "Layer population");
+  renderBar("poultryEggChart", has ? gewogSums(recs, "eggs") : [], "Egg production");
+}
+
+function renderPiggery(key) {
+  const recs = (ST.sectors.piggery || { records: [] }).records.filter(r => r.key === key);
+  const sows = sumField(recs, "sows"), boars = sumField(recs, "boars"),
+        sucklers = sumField(recs, "sucklers"), gilts = sumField(recs, "gilts");
+  const breeding = sows + boars + sucklers + gilts;
+  const fatteners = sumField(recs, "fattenersImproved");
+  const pork = sumField(recs, "porkProduced");
+  const has = breeding + fatteners + pork + sumField(recs, "breedingFarms") + sumField(recs, "fatteningFarms") > 0;
+  const hint = document.getElementById("piggeryHint");
+  hint.textContent = has ? "· " + monthLabel(key) : "· no data recorded for " + monthLabel(key);
+  document.getElementById("piggeryKpis").innerHTML =
+    kpiCard("Breeding population", has ? fmt(breeding) : "—",
+      "Sows " + fmt(sows) + " · Boars " + fmt(boars) + " · Sucklers " + fmt(sucklers) + " · Gilts/Weaners " + fmt(gilts)) +
+    kpiCard("Fattening population", has ? fmt(fatteners) : "—", "fatteners improved") +
+    kpiCard("Pork produced", has ? fmt(pork, 1) + " kg" : "—", "in month") +
+    kpiCard("Breeding farms", has ? fmt(sumField(recs, "breedingFarms")) : "—", "active in month") +
+    kpiCard("Fattening farms", has ? fmt(sumField(recs, "fatteningFarms")) : "—", "active in month");
+  document.getElementById("piggyPopHint").textContent = has ? monthLabel(key) : "no data";
+  document.getElementById("piggyPorkHint").textContent = has ? monthLabel(key) : "no data";
+  const popByGewog = {};
+  recs.forEach(r => {
+    const p = (r.sows || 0) + (r.boars || 0) + (r.sucklers || 0) + (r.gilts || 0);
+    if (p) popByGewog[r.gewog || "—"] = (popByGewog[r.gewog || "—"] || 0) + p;
+  });
+  renderBar("piggyPopChart", has ? Object.entries(popByGewog).sort((a, b) => b[1] - a[1]) : [], "Breeding population");
+  renderBar("piggyPorkChart", has ? gewogSums(recs, "porkProduced") : [], "Pork produced (kg)");
+}
+
+function renderFishery(key) {
+  const recs = key ? (ST.sectors.fishery || { records: [] }).records.filter(r => r.key === key) : [];
+  const trout = sumField(recs, "troutKg"), stock = sumField(recs, "stockBalance"),
+        fingerlings = sumField(recs, "troutFingerlings"), hh = sumField(recs, "troutHouseholds");
+  const has = trout + stock + fingerlings + hh > 0;
+  const hint = document.getElementById("fisheryHint");
+  hint.textContent = has ? "· " + monthLabel(key) : (!key ? "· no data recorded yet" : "· no data recorded for " + monthLabel(key));
+  document.getElementById("fisheryKpis").innerHTML =
+    kpiCard("Trout harvest", has ? fmt(trout, 1) + " kg" : "—", "in month") +
+    kpiCard("Stock balance", has ? fmt(stock) + " nos" : "—", "of trout in stock") +
+    kpiCard("Trout fingerlings", has ? fmt(fingerlings) + " nos" : "—", "supplied in month") +
+    kpiCard("Households", has ? fmt(hh) : "—", "doing trout farming");
+}
+
+/* ================= RENDER: APICULTURE ================= */
+function renderApiculture(key) {
+  const recs = key ? (ST.sectors.apiculture || { records: [] }).records.filter(r => r.key === key) : [];
+  const hives = sumField(recs, "localHives") + sumField(recs, "improvedHives");
+  const honey = sumField(recs, "honeyHarvested");
+  const hh = sumField(recs, "households");
+  const has = hives + honey + hh > 0;
+  const hint = document.getElementById("apicultureHint");
+  hint.textContent = has ? "· " + monthLabel(key) : (!key ? "· no data recorded yet" : "· no data recorded for " + monthLabel(key));
+  document.getElementById("apicultureKpis").innerHTML =
+    kpiCard("Households", has ? fmt(hh) : "—", "doing apiculture") +
+    kpiCard("Total hives", has ? fmt(hives) : "—", "local + improved") +
+    kpiCard("Honey harvested", has ? fmt(honey, 1) + " kg" : "—", "in month");
+}
+
+/* ================= RENDER: GEWOG-WISE ACHIEVEMENT ================= */
+const ACH_GEWOGS = ["Dokar", "Dopshari", "Doteng", "Hungrel", "Lamgong", "Lungnyi", "Naja", "Shaba", "Tsento", "Wangchang"];
+function renderAchievement(key) {
+  const table = document.getElementById("achTable");
+  if (!table) return;
+  const dairyRecs = ST.dairy.records.filter(r => r.key === key);
+  const sectorRecs = name => (ST.sectors[name] || { records: [] }).records.filter(r => r.key === key);
+  const src = {
+    piggery: sectorRecs("piggery"), poultry: sectorRecs("poultry"),
+    fishery: sectorRecs("fishery"), apiculture: sectorRecs("apiculture")
+  };
+  const gewogOf = r => MPU_GEWOG[norm(r.group)] || GROUP_GEWOG[norm(r.group)] || r.gewog || "—";
+  const build = (recs, field, mode) => {
+    const sums = {};
+    recs.forEach(r => {
+      if (mode === 1 && /mpu/i.test(r.group)) return;
+      const g = mode === 1 ? (GROUP_GEWOG[norm(r.group)] || r.gewog || "—") : gewogOf(r);
+      sums[g] = (sums[g] || 0) + (r[field] || 0);
+    });
+    return sums;
+  };
+  const rows = [
+    ["Pork Production (Kg)", build(src.piggery, "porkProduced", 0)],
+    ["Egg Production (Nos.)", build(src.poultry, "eggs", 0)],
+    ["Milk Production (Litres)", build(dairyRecs, "milkCollected", 1)],
+    ["Chicken (kg)", build(src.poultry, "chickenMT", 0)],
+    ["Trout (kg)", build(src.fishery, "troutKg", 0)],
+    ["Honey (Kg)", build(src.apiculture, "honeyHarvested", 0)],
+    ["Butter Production (Kg)", build(dairyRecs, "butterP", 2)],
+    ["Cheese (Kg)", build(dairyRecs, "cheeseP", 2)],
+    ["Yogurt (Litres)", build(dairyRecs, "yoghurtP", 2)],
+    ["Hard Chugo (Shay)", build(dairyRecs, "hardC", 2)],
+    ["Paneer (kg)", build(dairyRecs, "paneerP", 2)]
+  ];
+  let html = '<thead><tr><th class="l">Month</th><th class="l">Commodities</th>';
+  ACH_GEWOGS.forEach(g => { html += '<th>' + esc(g) + '</th>'; });
+  html += '<th>Total</th></tr></thead><tbody>';
+  rows.forEach(function (row, i) {
+    const vals = ACH_GEWOGS.map(g => row[1][g] || 0);
+    const total = vals.reduce((a, b) => a + b, 0);
+    html += '<tr>';
+    if (i === 0) html += '<td class="l ach-month" rowspan="' + rows.length + '">' + monthLabel(key) + '</td>';
+    html += '<td class="l">' + esc(row[0]) + '</td>';
+    vals.forEach(v => { html += '<td>' + (v ? fmt(v, 1) : "—") + '</td>'; });
+    html += '<td class="ach-total">' + fmt(total, 1) + '</td></tr>';
+  });
+  html += '</tbody>';
+  table.innerHTML = html;
+  document.getElementById("achHint").textContent = "Production by gewog — " + monthLabel(key);
+}
+
+/* ================= RENDER: PHOTOS ================= */
+function renderImages() {
+  const block = document.getElementById("photosBlock");
+  if (!block) return;
+  if (!ST.images.length) { block.style.display = "none"; return; }
+  block.style.display = "";
+  document.getElementById("photosGrid").innerHTML = ST.images.map(im =>
+    '<div class="card"><div class="label">' + esc(im.label || "Photo") + '</div>' +
+    '<img class="photo-img" src="' + esc(im.url) + '" alt="' + esc(im.label || "photo") + '" loading="lazy">' +
+    '</div>').join("");
+}
+
+/* ================= RENDER: REGISTRY ================= */
+function renderRegistry() {
+  const catsTxt = c => "Comm " + c.com + " · Semi " + c.semi + " · Subs " + c.sub;
+  const frs = "Registered in FRS · ";
+  document.getElementById("registryKpis").innerHTML =
+    kpiCard("MPUs", fmt(ST.mpu.length), "registered · click for list") +
+    kpiCard("Piggery fattening farms", fmt(ST.fattening.fattening), frs + catsTxt(ST.fattening.cats.fattening)) +
+    kpiCard("Piggery breeding farms", fmt(ST.fattening.breeding), frs + catsTxt(ST.fattening.cats.breeding)) +
+    kpiCard("Farmers Groups/Cooperatives", fmt(ST.dairyGroups), "registered · click for list") +
+    kpiCard("Poultry layer farms", fmt(ST.poultryFarms.count), frs + catsTxt(ST.poultryFarms.cats)) +
+    kpiCard("Highland Household Details", ST.highland.count ? fmt(ST.highland.count) : "—",
+      ST.highland.count ? "households · click or hover for details" : "no data yet") +
+    kpiCard("Our staff", fmt(ST.staff.count), "click for details") +
+    kpiCard("Trout farms", fmt(ST.troutFarms.count), "registered · click for details") +
+    kpiCard("Bee keepers", fmt(ST.beeKeepers.count), "registered · click for details");
+  bindRegistryCards();
+  if (typeof L !== "undefined" && !mapInit) initMap();
+}
+function initMap() {
+  if (typeof L === "undefined") return;
+  const coords = ST.mpu.map(x => {
+    const parts = String(x.gps || "").split(",").map(s => parseFloat(s.trim()));
+    return (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) ? { x, lat: parts[0], lng: parts[1] } : null;
+  }).filter(Boolean);
+  if (!mapInit) {
+    map = L.map(document.getElementById("map")).setView([27.35, 89.45], 10);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18, attribution: "© OpenStreetMap" }).addTo(map);
+    mapInit = true;
+  }
+  if (map._markers) map._markers.forEach(m => map.removeLayer(m));
+  map._markers = coords.map(function (c) {
+    const pop = '<b>' + esc(c.x.name) + '</b><br>' +
+      'Operated by: ' + esc(c.x.operatedBy || "—") + '<br>' +
+      'Contact: ' + esc(c.x.contact || "—") + '<br>' +
+      'Location: ' + esc(c.x.village || "—") + ' · ' + esc(c.x.gewog || "—") + '<br>' +
+      'Established: ' + fmt(c.x.year) + '<br>' +
+      'Capacity: ' + esc(c.x.capacity || "—") + ' L/day<br>' +
+      'Land area: ' + fmt(c.x.land, 2) + ' ac<br>' +
+      'Products: ' + esc(c.x.products || "—") +
+      '<br><a class="maps-link" target="_blank" rel="noopener" href="https://www.google.com/maps?q=' +
+      c.lat + ',' + c.lng + '">View in Google Maps</a>';
+    const m = L.marker([c.lat, c.lng]).addTo(map).bindPopup(pop);
+    // Leaflet's default click toggles the popup and the map's close-on-click
+    // cancels it — replace with always-open behavior.
+    m.off("click");
+    m.on("click", function (e) {
+      if (e && e.originalEvent) L.DomEvent.stopPropagation(e.originalEvent);
+      m.openPopup();
+    });
+    m.on("mouseover", function () { m.openPopup(); });
+    return m;
+  });
+  const farmPts = [];
+  if (ST.fattening && ST.fattening.records) {
+    ST.fattening.records.forEach(function (r) {
+      if (!r.geo) return;
+      const isBreed = /breed/i.test(r.type);
+      farmPts.push([r.geo[0], r.geo[1]]);
+      const fm = L.circleMarker([r.geo[0], r.geo[1]], {
+        radius: 7, color: isBreed ? "#d97706" : "#2e8b68",
+        fillColor: isBreed ? "#d97706" : "#2e8b68", fillOpacity: .9, weight: 1
+      }).addTo(map).bindPopup(
+        '<b>' + esc(r.name) + '</b><br>' + (isBreed ? "Piggery breeding farm" : "Piggery fattening farm") +
+        '<br>' + esc(r.village) + ' · ' + esc(r.gewog) +
+        '<br>GPS: ' + r.geo[0] + ', ' + r.geo[1]);
+      fm.off("click");
+      fm.on("click", function (e) {
+        if (e && e.originalEvent) L.DomEvent.stopPropagation(e.originalEvent);
+        fm.openPopup();
+      });
+      map._markers.push(fm);
+    });
+  }
+  if (ST.poultryFarms && ST.poultryFarms.records) {
+    ST.poultryFarms.records.forEach(function (r) {
+      if (!r.geo) return;
+      farmPts.push([r.geo[0], r.geo[1]]);
+      const lm = L.circleMarker([r.geo[0], r.geo[1]], {
+        radius: 6, color: "#7a5aa8", fillColor: "#7a5aa8", fillOpacity: .9, weight: 1
+      }).addTo(map).bindPopup(
+        '<b>' + esc(r.name) + '</b><br>Poultry layer farm' +
+        '<br>' + esc(r.village) + ' · ' + esc(r.gewog) +
+        (r.category ? '<br>Category: ' + esc(r.category) : '') +
+        '<br>GPS: ' + r.geo[0] + ', ' + r.geo[1]);
+      lm.off("click");
+      lm.on("click", function (e) {
+        if (e && e.originalEvent) L.DomEvent.stopPropagation(e.originalEvent);
+        lm.openPopup();
+      });
+      lm.on("mouseover", function () { lm.openPopup(); });
+      map._markers.push(lm);
+    });
+  }
+  const allPts = coords.map(c => [c.lat, c.lng]).concat(farmPts);
+  if (allPts.length) map.fitBounds(L.latLngBounds(allPts), { padding: [30, 30] });
+  else map.setView([27.35, 89.45], 10);
+  setTimeout(function () { map.invalidateSize(); }, 60);
+}
+
+/* ================= FARM LIST MODAL ================= */
+function bindRegistryCards() {
+  const cards = document.querySelectorAll("#registryKpis .card");
+  cards.forEach(function (card) {
+    const label = (card.querySelector(".label") || {}).textContent || "";
+    if (/^MPUs$/i.test(label.trim())) {
+      card.classList.add("clickable");
+      card.addEventListener("click", function () { openMpuList(); });
+    } else if (/fattening/i.test(label)) {
+      card.classList.add("clickable");
+      card.addEventListener("click", function () { openFarmList("fattening"); });
+    } else if (/breeding/i.test(label)) {
+      card.classList.add("clickable");
+      card.addEventListener("click", function () { openFarmList("breeding"); });
+    } else if (/farmers/i.test(label)) {
+      card.classList.add("clickable");
+      card.addEventListener("click", function () { openDairyGroups(); });
+    } else if (/layer/i.test(label)) {
+      card.classList.add("clickable");
+      card.addEventListener("click", function () { openPoultryFarms(); });
+    } else if (/highland/i.test(label)) {
+      card.classList.add("clickable");
+      card.addEventListener("click", function () { openHighlandList(); });
+      if (ST.highland.count) {
+        card.title = ST.highland.count + " highland households (" + ST.highland.records.length + " communities) — click for details";
+      }
+    } else if (/staff/i.test(label)) {
+      card.classList.add("clickable");
+      card.addEventListener("click", function () { openStaffList(); });
+    } else if (/trout/i.test(label)) {
+      card.classList.add("clickable");
+      card.addEventListener("click", function () { openTroutFarms(); });
+    } else if (/bee/i.test(label)) {
+      card.classList.add("clickable");
+      card.addEventListener("click", function () { openBeeKeepers(); });
+    }
+  });
+}
+function openFarmList(type) {
+  const isBreed = type === "breeding";
+  const recs = ST.fattening.records.filter(r => (isBreed ? /breed/i.test(r.type) : /fatt/i.test(r.type)));
+  document.getElementById("farmModalTitle").textContent =
+    (isBreed ? "Piggery breeding farms" : "Piggery fattening farms") + " — " + recs.length + " registered in FRS";
+  let html = '<thead><tr><th class="l">#</th><th class="l">Farmer</th><th class="l">Village</th><th class="l">Gewog</th>' +
+    '<th class="l">Category</th><th>Est.</th><th class="l">Geo-location (GPS)</th><th>Map</th></tr></thead><tbody>';
+  recs.forEach(function (r, i) {
+    const gps = r.geo ? r.geo[0] + ", " + r.geo[1] : "—";
+    html += '<tr><td class="l">' + (i + 1) + '</td><td class="l">' + esc(r.name) + '</td>' +
+      '<td class="l">' + esc(r.village) + '</td><td class="l">' + esc(r.gewog) + '</td>' +
+      '<td class="l">' + esc(r.category) + '</td><td>' + fmt(r.year) + '</td><td class="l">' + esc(gps) + '</td>' +
+      '<td>' + (r.geo ? '<a class="maps-link" target="_blank" rel="noopener" href="https://www.google.com/maps?q=' +
+        r.geo[0] + ',' + r.geo[1] + '">Open in Maps</a>' : "—") + '</td></tr>';
+  });
+  html += '</tbody>';
+  document.getElementById("farmTable").innerHTML = html;
+  document.getElementById("farmModal").classList.add("open");
+}
+function closeFarmList() { document.getElementById("farmModal").classList.remove("open"); }
+function openTroutFarms() {
+  const recs = ST.troutFarms.records || [];
+  document.getElementById("farmModalTitle").textContent =
+    "Trout farms — " + recs.length + " registered";
+  let html = '<thead><tr><th class="l">#</th><th class="l">Farm</th><th class="l">Manager</th>' +
+    '<th>Contact</th><th class="l">Gewog</th><th class="l">Village</th><th>Ponds</th><th>Capacity (nos)</th>' +
+    '<th class="l">Geo-location (GPS)</th><th>Map</th></tr></thead><tbody>';
+  recs.forEach(function (r, i) {
+    const gps = r.geo ? r.geo[0] + ", " + r.geo[1] : "—";
+    const tel = (r.contact && /^\d+$/.test(r.contact))
+      ? '<a class="maps-link" href="tel:' + r.contact + '">' + esc(r.contact) + '</a>'
+      : esc(r.contact || "—");
+    html += '<tr><td class="l">' + esc(r.slno || (i + 1)) + '</td><td class="l">' + esc(r.name) + '</td>' +
+      '<td class="l">' + esc(r.manager || "—") + '</td><td>' + tel + '</td>' +
+      '<td class="l">' + esc(r.gewog || "—") + '</td><td class="l">' + esc(r.village || "—") + '</td>' +
+      '<td>' + fmt(r.ponds) + '</td><td>' + fmt(r.capacity) + '</td><td class="l">' + esc(gps) + '</td>' +
+      '<td>' + (r.geo ? '<a class="maps-link" target="_blank" rel="noopener" href="https://www.google.com/maps?q=' +
+        r.geo[0] + ',' + r.geo[1] + '">Open</a>' : "—") + '</td></tr>';
+  });
+  html += '</tbody>';
+  document.getElementById("farmTable").innerHTML = html;
+  document.getElementById("farmModal").classList.add("open");
+}
+function openBeeKeepers() {
+  const recs = ST.beeKeepers.records || [];
+  document.getElementById("farmModalTitle").textContent =
+    "Bee keepers — " + recs.length + " registered";
+  let html = '<thead><tr><th class="l">#</th><th class="l">Name</th><th>Contact</th>' +
+    '<th class="l">Gewog</th><th class="l">Village</th><th>Hives</th>' +
+    '<th class="l">Geo-location (GPS)</th><th>Map</th></tr></thead><tbody>';
+  recs.forEach(function (r, i) {
+    const gps = r.geo ? r.geo[0] + ", " + r.geo[1] : "—";
+    const tel = (r.contact && /^\d+$/.test(r.contact))
+      ? '<a class="maps-link" href="tel:' + r.contact + '">' + esc(r.contact) + '</a>'
+      : esc(r.contact || "—");
+    html += '<tr><td class="l">' + esc(r.slno || (i + 1)) + '</td><td class="l">' + esc(r.name) + '</td>' +
+      '<td>' + tel + '</td><td class="l">' + esc(r.gewog || "—") + '</td><td class="l">' + esc(r.village || "—") + '</td>' +
+      '<td>' + fmt(r.hives) + '</td><td class="l">' + esc(gps) + '</td>' +
+      '<td>' + (r.geo ? '<a class="maps-link" target="_blank" rel="noopener" href="https://www.google.com/maps?q=' +
+        r.geo[0] + ',' + r.geo[1] + '">Open</a>' : "—") + '</td></tr>';
+  });
+  html += '</tbody>';
+  document.getElementById("farmTable").innerHTML = html;
+  document.getElementById("farmModal").classList.add("open");
+}
+function openStaffList() {
+  const recs = ST.staff.records || [];
+  document.getElementById("farmModalTitle").textContent =
+    "Our staff — " + recs.length + " members (Paro Dzongkhag Livestock Sector)";
+  let html = '<thead><tr><th class="l">#</th><th class="l">Name</th><th class="l">Designation</th><th class="l">Position</th>' +
+    '<th>Mobile</th><th class="l">Posting</th></tr></thead><tbody>';
+  recs.forEach(function (r, i) {
+    const tel = (r.mobile && /^\d+$/.test(r.mobile))
+      ? '<a class="maps-link" href="tel:' + r.mobile + '">' + esc(r.mobile) + '</a>'
+      : esc(r.mobile || "—");
+    html += '<tr><td class="l">' + esc(r.slno || (i + 1)) + '</td><td class="l">' + esc(r.name) + '</td>' +
+      '<td class="l">' + esc(r.designation || "—") + '</td><td class="l">' + esc(r.position || "—") + '</td>' +
+      '<td>' + tel + '</td><td class="l">' + esc(r.posting || "—") + '</td></tr>';
+  });
+  html += '</tbody>';
+  document.getElementById("farmTable").innerHTML = html;
+  document.getElementById("farmModal").classList.add("open");
+}
+function openPoultryFarms() {
+  const recs = ST.poultryFarms.records || [];
+  document.getElementById("farmModalTitle").textContent =
+    "Poultry layer farms — " + recs.length + " registered in FRS";
+  let html = '<thead><tr><th class="l">#</th><th class="l">Farmer</th><th class="l">Village</th><th class="l">Gewog</th>' +
+    '<th class="l">Category</th><th>Est.</th><th class="l">Reg. no.</th><th>Contact</th>' +
+    '<th class="l">Geo-location (GPS)</th><th>Map</th></tr></thead><tbody>';
+  recs.forEach(function (r, i) {
+    const gps = r.geo ? r.geo[0] + ", " + r.geo[1] : "—";
+    const tel = (r.contact && /^\d+$/.test(r.contact))
+      ? '<a class="maps-link" href="tel:' + r.contact + '">' + esc(r.contact) + '</a>'
+      : esc(r.contact || "—");
+    html += '<tr><td class="l">' + (i + 1) + '</td><td class="l">' + esc(r.name) + '</td>' +
+      '<td class="l">' + esc(r.village || "—") + '</td><td class="l">' + esc(r.gewog || "—") + '</td>' +
+      '<td class="l">' + esc(r.category || "—") + '</td><td>' + fmt(r.year) + '</td>' +
+      '<td class="l">' + esc(r.regNo || "—") + '</td><td>' + tel + '</td><td class="l">' + esc(gps) + '</td>' +
+      '<td>' + (r.geo ? '<a class="maps-link" target="_blank" rel="noopener" href="https://www.google.com/maps?q=' +
+        r.geo[0] + ',' + r.geo[1] + '">Open</a>' : "—") + '</td></tr>';
+  });
+  html += '</tbody>';
+  document.getElementById("farmTable").innerHTML = html;
+  document.getElementById("farmModal").classList.add("open");
+}
+function openMpuList() {
+  const recs = ST.mpu || [];
+  document.getElementById("farmModalTitle").textContent =
+    "Milk Processing Units — " + recs.length + " registered";
+  let html = '<thead><tr><th class="l">#</th><th class="l">Name of MPU</th><th class="l">Operated by</th>' +
+    '<th class="l">Contact</th><th class="l">Village</th><th class="l">Gewog</th><th>Est.</th>' +
+    '<th>Capacity (L/day)</th><th>Land (ac)</th><th class="l">Products</th><th>Map</th></tr></thead><tbody>';
+  recs.forEach(function (x, i) {
+    const geo = parseGeo(x.gps);
+    const gps = geo ? geo[0] + ", " + geo[1] : (x.gps || "—");
+    html += '<tr><td class="l">' + esc(x.slno || (i + 1)) + '</td><td class="l">' + esc(x.name) + '</td>' +
+      '<td class="l">' + esc(x.operatedBy || "—") + '</td><td class="l">' + esc(x.contact || "—") + '</td>' +
+      '<td class="l">' + esc(x.village || "—") + '</td><td class="l">' + esc(x.gewog || "—") + '</td>' +
+      '<td>' + fmt(x.year) + '</td><td>' + esc(x.capacity || "—") + '</td><td>' + fmt(x.land, 2) + '</td>' +
+      '<td class="l">' + esc(x.products || "—") + '</td>' +
+      '<td>' + (geo ? '<a class="maps-link" target="_blank" rel="noopener" href="https://www.google.com/maps?q=' +
+        geo[0] + ',' + geo[1] + '">Open</a>' : "—") + '</td></tr>';
+  });
+  html += '</tbody>';
+  document.getElementById("farmTable").innerHTML = html;
+  document.getElementById("farmModal").classList.add("open");
+}
+function openHighlandList() {
+  const recs = ST.highland.records || [];
+  document.getElementById("farmModalTitle").textContent =
+    "Highland Household Details — " + fmt(ST.highland.count) + " households";
+  let html = '<thead><tr><th class="l">#</th><th class="l">Village</th><th class="l">Gewog</th>' +
+    '<th>No. of household</th><th>Total Yaks</th></tr></thead><tbody>';
+  recs.forEach(function (r, i) {
+    html += '<tr><td class="l">' + (i + 1) + '</td><td class="l">' + esc(r.village) + '</td>' +
+      '<td class="l">' + esc(r.gewog || "—") + '</td><td>' + fmt(r.households) + '</td>' +
+      '<td>' + fmt(r.yaks) + '</td></tr>';
+  });
+  html += '<tr><td class="l" colspan="3"><b>Total</b></td><td><b>' + fmt(ST.highland.count) + '</b></td>' +
+    '<td><b>' + fmt(ST.highland.totalYaks) + '</b></td></tr>';
+  html += '</tbody>';
+  document.getElementById("farmTable").innerHTML = html;
+  document.getElementById("farmModal").classList.add("open");
+}
+function openDairyGroups() {
+  const recs = ST.dairyGroupRecords || [];
+  document.getElementById("farmModalTitle").textContent =
+    "Farmers groups & cooperatives — " + recs.length + " registered";
+  let html = '<thead><tr><th class="l">#</th><th class="l">Name</th><th class="l">Gewog</th><th class="l">Type</th>' +
+    '<th class="l">Reg. no.</th><th class="l">Reg. date</th><th class="l">Chairman</th><th>Contact</th><th>Active members</th></tr></thead><tbody>';
+  recs.forEach(function (r, i) {
+    const tel = (r.contact && /^\d+$/.test(r.contact))
+      ? '<a class="maps-link" href="tel:' + r.contact + '">' + esc(r.contact) + '</a>'
+      : esc(r.contact || "—");
+    html += '<tr><td class="l">' + (i + 1) + '</td><td class="l">' + esc(r.name) + '</td>' +
+      '<td class="l">' + esc(r.gewog || "—") + '</td><td class="l">' + esc(r.regType || "—") + '</td>' +
+      '<td class="l">' + esc(r.regNo || "—") + '</td><td class="l">' + esc(r.regDate || "—") + '</td>' +
+      '<td class="l">' + esc(r.chairman || "—") + '</td><td>' + tel + '</td><td>' + fmt(r.active) + '</td></tr>';
+  });
+  html += '</tbody>';
+  document.getElementById("farmTable").innerHTML = html;
+  document.getElementById("farmModal").classList.add("open");
+}
+
+/* ================= MONTH SELECTOR ================= */
+function buildMonthList() {
+  const set = new Set();
+  ST.dairy.months.forEach(k => set.add(k));
+  for (const k of ["poultry", "piggery", "fishery", "apiculture"]) {
+    const s = ST.sectors[k];
+    if (s) s.dataMonths.forEach(mk => set.add(mk));
+  }
+  (ST.ai.dataMonths || []).forEach(mk => set.add(mk));
+  ST.monthsAll = [...set].sort();
+}
+function renderMonthSelector() {
+  const sel = document.getElementById("monthSel");
+  const prev = sel.value;
+  // default to the NEWEST month that has data anywhere (dairy, AI, poultry, piggery, fishery, apiculture),
+  // so a freshly added month in any sheet is selected automatically on the next refresh.
+  const def = (prev && ST.monthsAll.includes(prev)) ? prev
+            : (ST.monthsAll.length ? ST.monthsAll[ST.monthsAll.length - 1] : "");
+  sel.innerHTML = ST.monthsAll.map(k => '<option value="' + k + '">' + monthLabel(k) + '</option>').join("");
+  sel.value = def;
+}
+
+/* ================= ORCHESTRATION ================= */
+function setStatus(text, cls) {
+  document.getElementById("statusText").textContent = text;
+  document.getElementById("statusDot").className = "dot" + (cls === "ok" ? " ok" : cls === "err" ? " err" : "");
+}
+function showBanner(msg) {
+  const b = document.getElementById("errBanner");
+  b.textContent = msg; b.classList.add("show");
+}
+function hideBanner() { document.getElementById("errBanner").classList.remove("show"); }
+function selectedMonth() { return document.getElementById("monthSel").value; }
+
+function renderAll() {
+  const key = selectedMonth();
+  renderDairy(key);
+  renderAI(key);
+  renderPoultry(key);
+  renderPiggery(key);
+  renderFishery(key);
+  renderApiculture(key);
+  renderAchievement(key);
+  renderImages();
+  renderRegistry();
+  document.getElementById("headerSub").textContent =
+    "Dairy / Poultry / Piggery / Fishery/honey — Live Data";
+}
+
+function doRefresh() {
+  if (refreshing) return;
+  refreshing = true;
+  setStatus("Refreshing…", "");
+  hideBanner();
+  fetchCSV("dairy")
+    .then(() => fetchCSV("poultry"))
+    .then(() => fetchCSV("piggery"))
+    .then(() => fetchCSV("fishery"))
+    .then(() => fetchCSV("dairyGroups"))
+    .then(() => fetchCSV("fattening"))
+    .then(() => fetchCSV("poultryFarms"))
+    .then(() => fetchCSV("staff"))
+    .then(() => fetchCSV("troutFarms"))
+    .then(() => fetchCSV("beeKeepers"))
+    .then(() => fetchCSV("apiculture"))
+    .then(() => fetchCSV("ai"))
+    .then(() => loadDairy())
+    .then(() => loadSector("poultry"))
+    .then(() => loadSector("piggery"))
+    .then(() => loadSector("fishery"))
+    .then(() => loadSector("apiculture"))
+    .then(() => loadAI())
+    .then(() => loadDairyGroups())
+    .then(() => loadFattening())
+    .then(() => loadPoultryFarms())
+    .then(() => loadStaff())
+    .then(() => loadTroutFarms())
+    .then(() => loadBeeKeepers())
+    .then(() => loadMpu())
+    .then(() => loadAnnualTargets())
+    .then(() => loadHighland())
+    .then(() => loadImages())
+    .then(() => { computeTargetProgress(); renderTargets(); })
+    .then(() => { buildMonthList(); renderMonthSelector(); renderAll(); })
+    .then(() => {
+      document.getElementById("lastUpdate").textContent = "Updated " + new Date().toLocaleTimeString();
+      setStatus("Live · refresh in " + countdownSec + "s", "ok");
+    })
+    .catch(err => {
+      setStatus("Error", "err");
+      showBanner("Could not load data: " + (err && err.message ? err.message : err) +
+        ". Make sure the sheets are shared as \u201cAnyone with the link can view\u201d and you are online.");
+    })
+    .finally(() => { refreshing = false; });
+}
+
+/* ================= CONTROLS ================= */
+function tick() {
+  const s = parseInt(document.getElementById("refreshSel").value, 10) || 0;
+  if (!refreshing) {
+    countdownSec--;
+    if (countdownSec <= 0) { countdownSec = s; doRefresh(); }
+    else document.getElementById("statusText").textContent = "Live · refresh in " + countdownSec + "s";
+  }
+}
+function startRefresh() {
+  if (timerId) clearInterval(timerId);
+  const s = parseInt(document.getElementById("refreshSel").value, 10) || 0;
+  countdownSec = s;
+  if (s > 0) timerId = setInterval(tick, 1000);
+  else document.getElementById("statusText").textContent = "Live · auto-refresh off";
+}
+function bindControls() {
+  document.getElementById("refreshBtn").addEventListener("click", function () {
+    countdownSec = parseInt(document.getElementById("refreshSel").value, 10) || 0;
+    doRefresh();
+  });
+  document.getElementById("refreshSel").addEventListener("change", startRefresh);
+  document.getElementById("monthSel").addEventListener("change", function () {
+    const key = selectedMonth();
+    renderDairy(key); renderAI(key); renderPoultry(key); renderPiggery(key);
+    renderFishery(key); renderApiculture(key); renderAchievement(key);
+  });
+  document.getElementById("farmModalClose").addEventListener("click", closeFarmList);
+  document.getElementById("farmModal").addEventListener("click", function (e) {
+    if (e.target && e.target.id === "farmModal") closeFarmList();
+  });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeFarmList(); });
+}
+
+/* ================= INIT ================= */
+(function init() {
+  bindControls();
+  ensureCharts();
+  doRefresh();
+  startRefresh();
+})();
+</script>
+</body>
+</html>
