@@ -1485,12 +1485,17 @@ function openFarmList(type) {
   document.getElementById("farmModalTitle").textContent =
     (isBreed ? "Piggery breeding farms" : "Piggery fattening farms") + " — " + recs.length + " registered in FRS";
   let html = '<thead><tr><th class="l">#</th><th class="l">Farmer</th><th class="l">Village</th><th class="l">Gewog</th>' +
-    '<th class="l">Category</th><th>Est.</th><th class="l">Geo-location (GPS)</th><th>Map</th></tr></thead><tbody>';
+    '<th class="l">Category</th><th>Contact</th><th>Est.</th><th class="l">Geo-location (GPS)</th><th>Map</th></tr></thead><tbody>';
   recs.forEach(function (r, i) {
     const gps = r.geo ? r.geo[0] + ", " + r.geo[1] : "—";
+    const raw = r.contact || "";
+    const num = raw.replace(/\.0+$/, "");
+    const tel = (num && /^\d+$/.test(num))
+      ? '<a class="maps-link" href="tel:' + num + '">' + esc(num) + '</a>'
+      : esc(raw || "—");
     html += '<tr><td class="l">' + (i + 1) + '</td><td class="l">' + esc(r.name) + '</td>' +
       '<td class="l">' + esc(r.village) + '</td><td class="l">' + esc(r.gewog) + '</td>' +
-      '<td class="l">' + esc(r.category) + '</td><td>' + fmt(r.year) + '</td><td class="l">' + esc(gps) + '</td>' +
+      '<td class="l">' + esc(r.category) + '</td><td>' + tel + '</td><td>' + fmt(r.year) + '</td><td class="l">' + esc(gps) + '</td>' +
       '<td>' + (r.geo ? '<a class="maps-link" target="_blank" rel="noopener" href="https://www.google.com/maps?q=' +
         r.geo[0] + ',' + r.geo[1] + '">Open in Maps</a>' : "—") + '</td></tr>';
   });
