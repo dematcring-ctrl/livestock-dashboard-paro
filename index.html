@@ -739,6 +739,7 @@ function loadFattening() {
     const C = {
       type: findCol(H, ["farmregistrationtype"]),
       name: findCol(H, ["nameofthefarmer"]),
+      contact: findCol(H, ["contactno"]),
       gewog: findCol(H, ["gewog"]),
       village: findCol(H, ["village"]),
       category: findCol(H, ["category"]),
@@ -757,6 +758,7 @@ function loadFattening() {
       if (!name) continue;
       records.push({
         type: cur, name: name,
+        contact: C.contact >= 0 ? String(r[C.contact] || "").trim() : "",
         gewog: C.gewog >= 0 ? String(r[C.gewog] || "").trim() : "",
         village: C.village >= 0 ? String(r[C.village] || "").trim() : "",
         category: C.category >= 0 ? String(r[C.category] || "").trim() : "",
