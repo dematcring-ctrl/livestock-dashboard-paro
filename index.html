@@ -1660,7 +1660,19 @@ function buildMonthList() {
     if (s) s.dataMonths.forEach(mk => set.add(mk));
   }
   (ST.ai.dataMonths || []).forEach(mk => set.add(mk));
-  ST.monthsAll = [...set].sort();
+  const all = [...set].sort();
+  // Show only the LATEST financial year (July–June) that has data, e.g. FY 2026-27
+  // (July 2026 onwards). Older years (e.g. July 2025 – June 2026) are hidden from
+  // the Reporting month dropdown; the filter advances automatically when a new FY
+  // gets its first data entry.
+  const latest = all[all.length - 1] || "";
+  let fyStart = "";
+  if (latest) {
+    const y = parseInt(latest.slice(0, 4), 10);
+    const m = parseInt(latest.slice(5, 7), 10);
+    fyStart = (m < 6 ? y - 1 : y) + "-06";
+  }
+  ST.monthsAll = fyStart ? all.filter(k => k >= fyStart) : all;
 }
 function renderMonthSelector() {
   const sel = document.getElementById("monthSel");
