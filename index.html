@@ -582,6 +582,11 @@ function loadSector(sourceKey) {
       if (!curMonth) continue;
       const gewog = C.gewog >= 0 ? String(r[C.gewog] || "").trim() : "";
       if (!gewog) continue;
+      // Each month's block ends with a row whose Gewog cell literally says "Total".
+      // It restates the month's grand total, so treating it as a gewog sums every
+      // figure twice (pork Jul-Sep read 18.25 MT instead of 9.13 MT).
+      // Same guard the dairy loader already applies.
+      if (norm(gewog) === "total" || norm(gewog) === "grandtotal") continue;
       const rec = { key: curMonth, gewog: gewog };
       let any = false;
       for (const f of numericFields) {
